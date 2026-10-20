@@ -1,0 +1,162 @@
+GRAEL V5 BASELINE
+DATE=2026-08-22T04:01:52+00:00
+BRANCH=manus/v5-pilot-operational
+BASE_COMMIT=f947756db218b611c5455f5769f733816eae0a88
+
+== frontend_lint ==
+
+up to date in 340ms
+
+> grael-frontend@1.0.0 lint
+> next lint
+
+✔ No ESLint warnings or errors
+EXIT=0
+== frontend_tsc ==
+EXIT=0
+== frontend_build ==
+
+> grael-frontend@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.3
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/23) ...
+   Generating static pages (5/23) 
+   Generating static pages (11/23) 
+   Generating static pages (17/23) 
+ ✓ Generating static pages (23/23)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    137 B          87.2 kB
+├ ○ /_not-found                          871 B          87.9 kB
+├ ○ /bolsa                               5.06 kB         105 kB
+├ ○ /busqueda                            9.41 kB         131 kB
+├ ○ /busqueda-qr                         6.74 kB         128 kB
+├ ○ /caja-diaria                         8.01 kB         129 kB
+├ ○ /comprobantes                        6.86 kB         128 kB
+├ ○ /configuracion                       5.71 kB         109 kB
+├ ○ /dashboard                           5.69 kB         104 kB
+├ ○ /desembarque                         5.43 kB         130 kB
+├ ○ /detraccion                          4.7 kB          105 kB
+├ ○ /egresos                             5.29 kB         127 kB
+├ ○ /inventario                          5.52 kB         127 kB
+├ ○ /login                               4.36 kB         147 kB
+├ ○ /manifiesto                          8.78 kB         130 kB
+├ ○ /pago-sin-comprobante                4.69 kB         129 kB
+├ ○ /recepcion                           16.1 kB         162 kB
+├ ○ /reparto                             5.43 kB         127 kB
+├ ○ /reportes                            7.04 kB         107 kB
+├ ○ /tracking                            4.65 kB         126 kB
+└ ○ /transbordo                          7.22 kB         129 kB
++ First Load JS shared by all            87 kB
+  ├ chunks/23-91a6a7ab554044ce.js        31.5 kB
+  ├ chunks/fd9d1056-0452428ab487ffa7.js  53.6 kB
+  └ other shared chunks (total)          1.95 kB
+
+
+○  (Static)  prerendered as static content
+
+EXIT=0
+== backend_build ==
+
+up to date in 453ms
+
+> grael-backend@1.0.0 build
+> nest build
+
+EXIT=0
+== backend_unit ==
+
+> grael-backend@1.0.0 test:unit
+> jest --runInBand src/**/*.spec.ts
+
+PASS src/reparto/reparto.service.spec.ts
+PASS src/egresos/egresos.service.spec.ts
+PASS src/bultos/bultos.service.spec.ts
+PASS src/pagos/pagos.service.spec.ts
+PASS src/gre/gre.service.spec.ts
+PASS src/tickets/ticket-workflow.service.spec.ts
+PASS src/auth/jwt.strategy.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       18 passed, 18 total
+Snapshots:   0 total
+Time:        1.958 s, estimated 2 s
+Ran all test suites matching src/auth/jwt.strategy.spec.ts|src/bultos/bultos.service.spec.ts|src/egresos/egresos.service.spec.ts|src/gre/gre.service.spec.ts|src/pagos/pagos.service.spec.ts|src/reparto/reparto.service.spec.ts|src/tickets/ticket-workflow.service.spec.ts.
+EXIT=0
+== migrations ==
+
+> grael-backend@1.0.0 migration:run
+> npm run typeorm -- migration:run
+
+
+> grael-backend@1.0.0 typeorm
+> ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js --dataSource=src/database/data-source.ts migration:run
+
+query: SELECT version()
+query: SELECT * FROM current_schema()
+query: CREATE EXTENSION IF NOT EXISTS "uuid-ossp"
+query: SELECT * FROM "information_schema"."tables" WHERE "table_schema" = 'public' AND "table_name" = 'migrations'
+query: SELECT * FROM "migrations" "migrations" ORDER BY "id" DESC
+No migrations are pending
+EXIT=0
+== seed ==
+
+> grael-backend@1.0.0 seed
+> ts-node -r tsconfig-paths/register src/database/seeds/run-seeds.ts
+
+📦 Conectado a PostgreSQL. Iniciando seeds...
+
+  → Sembrando destinos...
+     ✓ 10 destinos
+  → Sembrando sedes y almacenes V2...
+     ✓ 4 sedes V2
+  → Sembrando usuarios...
+     ✓ 9 usuarios
+  → Sembrando programaciones...
+     ✓ 8 programaciones
+  → Sembrando clientes...
+     ✓ 13 clientes
+  → Sembrando tickets...
+     ✓ 7 tickets
+  → Sembrando pagos...
+     ✓ pagos registrados
+  → Sembrando desembarques...
+     ✓ desembarques registrados
+  → Sembrando configuración...
+     ✓ 20 configuraciones
+  → Sembrando vehículos, conductores y tarifas V2...
+     ✓ flota y tarifas V2
+  → Sembrando bultos y tracking inicial...
+     ✓ bultos y tracking inicial
+
+✅ Seeds completados exitosamente
+   Usuarios creados:
+   → jesus.cutisaca / admin123  (ADMIN_SEDE)
+   → leydy.diana    / op123     (OPERADOR)
+   → maria.garcia   / caj123    (CAJERO)
+   → supervisor     / super123  (SUPERVISOR)
+
+EXIT=0
+== health ==
+curl: (7) Failed to connect to localhost port 3001 after 0 ms: Couldn't connect to server
+EXIT=7
+
+== login ==
+HTTP 200_EXPECTED response=
+
+== me ==
+NO_TOKEN
+
+== HTTP baseline ==
+health={"status":"ok","db":"ok","requestId":"9e39f997-c3b7-4bd0-8965-5d9c904784c3","latencyMs":1,"time":"2026-08-22T04:02:38.584Z","env":"development"} HTTP_STATUS=200
+login_status=200
+me={"id":"2315911f-b26c-4fcd-a15f-7001b65239e3","username":"superadmin","nombre":"ADMIN","apellido":"NACIONAL","email":"superadmin@grael.pe","telefono":null,"rol":"SUPERADMIN","sede":"LIMA","sedeId":"77b7bb7c-a919-4675-bafe-4a006b68cfe8","activo":true,"createdAt":"2026-08-21T20:29:09.860Z","updatedAt":"2026-08-21T20:29:09.860Z"} HTTP_STATUS=200

@@ -1,0 +1,29 @@
+GRAEL V6 — VALIDACION RUNS
+Fecha de ejecución: 2026-08-22
+Worktree: /home/ubuntu/grael_work/GRAEL_V6_WORK
+
+[PASS] grael-backend: npm run build
+[PASS] grael-backend: npm run test:unit
+      12 suites passed / 33 tests passed
+[PASS] grael-backend: npm run migration:run
+      CreatePhysicalUnloadingV6 ejecutada
+      CreateGreDocumentsV6 ejecutada
+[PASS] PostgreSQL verificación directa
+      migrations=19
+      desembarque_sesiones=present
+      desembarque_bultos=present
+      gre_documentos=present
+      gre_documentos_estado_enum=present
+[PASS] grael-backend: npm run seed
+[PASS] grael-backend: npm run seed (segunda ejecución)
+[PASS] grael-frontend: npm run lint
+      sin warnings/errors ESLint; queda warning informativo de compatibilidad TS externo al código
+[PASS] grael-frontend: npx tsc --noEmit
+[PASS] grael-frontend: npm run build
+      26 rutas estáticas generadas
+[PASS PARCIAL] VALIDACION_HTTP_SMOKE_V6.sh contra backend V6 aislado :3002
+      health=200, unauth report=401, me=200, reportes=200, incidencias=200,
+      inventario=200, transbordo=200, gre-mock=201, gre_documentos count=1
+      no se ejecutó sesión física completa con fixture LLEGADO
+
+NO EJECUTADO: E2E Playwright, carga, concurrencia, backup/restore, SUNAT real.

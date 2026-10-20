@@ -1,0 +1,20 @@
+GRAEL V7 — HTTP SMOKE REAL
+Fecha: 2026-08-23
+Base: http://localhost:3002 con PostgreSQL local
+Usuario de prueba: supervisor (desarrollo)
+
+PASS|health|HTTP 200
+PASS|unauthenticated_report|HTTP 401
+PASS|login|HTTP 200
+PASS|me|HTTP 200
+PASS|reportes_dashboard|HTTP 200
+PASS|incidencias|HTTP 200
+PASS|inventario|HTTP 200
+PASS|transbordo|HTTP 200
+PASS|comprobantes|HTTP 200
+PASS|legacy_bypass_blocked|HTTP 400; respuesta de dominio code=LEGACY_UNLOADING_REQUIRES_EXPLICIT_FLAG y statusCode=409
+PASS|gre_mock_persistente|HTTP 201
+PASS|gre_documentos_persistidos|count=2
+SMOKE_V7_COMPLETED
+
+El script `VALIDACION_HTTP_SMOKE_V7.sh` fue ejecutado después de recompilar y reiniciar el backend. El smoke prueba disponibilidad, autenticación, endpoints scoped de reportes/incidencias/inventario/transbordo/comprobantes, bloqueo legacy y persistencia de GRE MOCK. No declara como ejecutados los escenarios de recepción nueva, bultos, manifiesto, flota, carguío, despacho, llegada, desembarque completo, entrega, caja y transbordo nacional porque requieren fixtures operativos nuevos; esos escenarios están pendientes de una corrida dedicada.

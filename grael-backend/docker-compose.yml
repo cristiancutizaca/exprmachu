@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: grael_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     grael_user
+      POSTGRES_PASSWORD: grael_pass_2026
+      POSTGRES_DB:       grael_db
+      TZ:                America/Lima
+    ports:
+      - '5432:5432'
+    volumes:
+      - grael_pg_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U grael_user -d grael_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── pgAdmin (interfaz web para ver la BD) ─────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: grael_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@grael.pe
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - '5050:80'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - grael_pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  grael_pg_data:
+  grael_pgadmin_data:

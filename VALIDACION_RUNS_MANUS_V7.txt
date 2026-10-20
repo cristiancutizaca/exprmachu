@@ -1,0 +1,78 @@
+GRAEL V7 — REGISTRO DE EJECUCIONES
+Fecha de referencia: 2026-08-23 (sandbox local)
+
+BASELINE / IMPLEMENTACIÓN
+- Worktree independiente: /home/ubuntu/grael_work/GRAEL_V7_WORK
+- Base oficial: GRAEL_MANUS_V6_FINAL.zip; ZIP original preservado.
+- Rama de trabajo: manus/v7-pilot-final-core.
+- Migraciones verificadas en DB local: 22 filas en migrations después de V7.
+- Seed V7: ejecutado dos veces durante el baseline/upgrade; sin duplicaciones observadas.
+
+BACKEND
+- npm run build: PASS.
+- npm run test:unit: PASS.
+- Descubrimiento físico: 15 archivos *.spec.ts.
+- Suites Jest descubiertas/ejecutadas: 15/15.
+- Tests: 43 PASS, 0 FAIL, 0 SKIP.
+- Última ejecución posterior a Comprobantes y protección legacy: 15 suites, 43 tests PASS.
+
+FRONTEND
+- npm run lint: PASS.
+- npx tsc --noEmit: PASS.
+- npm run build: PASS.
+- Rutas compiladas: 26.
+- Advertencia no bloqueante repetida: TypeScript 5.9.3 fuera del rango oficialmente soportado por @typescript-eslint/typescript-estree del proyecto.
+
+VALIDACIÓN VISUAL / LOGIN
+- Frontend local: http://localhost:3003.
+- Backend local: http://localhost:3002.
+- Primer intento: FAIL funcional de comunicación por CORS en puerto 3003; corregido agregando whitelist explícita.
+- Segundo intento con navegador interactivo: PASS; login real redirigió a /recepcion con JWT, sede CUSCO y rol ADMIN_SEDE.
+- Drawer: PASS visual; inicia cerrado, abre con hamburguesa y se cierra con Escape.
+
+PLAYWRIGHT
+- Primer intento: FAIL de configuración; el runner buscaba browser descargado.
+- Segundo intento: FAIL de hidratación/caché Next; submit nativo y chunks .next corruptos.
+- Corrección: launchOptions con Chromium del sistema, limpieza de .next y espera de networkidle.
+- Última ejecución: PASS, 2 tests, 2 PASS, 0 FAIL, 0 SKIP, 4.4 s.
+- Casos PASS: login real + drawer overlay + logout; navegación real a Comprobantes y Detracción sin fallback silencioso.
+
+HTTP SMOKE V7
+- Script: VALIDACION_HTTP_SMOKE_V7.sh.
+- PASS: health 200, reporte sin autenticación 401, login 200, auth/me 200, dashboard 200, incidencias 200, inventario 200, transbordo 200, comprobantes 200, bloqueo legacy 400 con código de negocio 409, GRE MOCK 201 y persistencia gre_documentos.
+- Conteo GRE observado después del smoke: 2.
+- Estado del smoke: PASS para las comprobaciones implementadas en el script; no equivale a E2E integral nacional.
+
+INTEGRIDAD
+- Script: scripts/check-data-integrity-v7.sh.
+- Checks ejecutados: bulto sin ticket, bulto/sede/almacén incompatible, ubicación/almacén incompatible, pagos sin sede, pagos sobre total, ticket pagado con saldo, desembarque recibido sin movimiento, referencia de movimiento incompleta, comprobante sin ticket.
+- Resultado: todos los checks ejecutados reportaron violations=0.
+
+BACKUP / RESTORE
+- backup-db.sh: PASS; dump custom creado fuera del worktree final.
+- restore-db.sh: PASS en DB aislada grael_v7_restore, ejecutado como usuario PostgreSQL del sistema.
+- Conteos comparados antes/después: tickets 7/7, bultos 25/25, pagos 4/4, migrations 22/22.
+- Base aislada eliminada al finalizar: PASS.
+
+CONCURRENCIA
+- scripts/test-concurrency-v7.js creado.
+- Ejecutado: 20 requests simultáneos de login; 20 HTTP 200, 0 errores inesperados, 0 duplicados.
+- Payment race, double unloading scan y numbering documental: SKIP por ausencia de fixtures mutables dedicados; no se declaran probados.
+
+PERFORMANCE
+- scripts/performance-v7.js ejecutado con 30 requests secuenciales por endpoint.
+- health: p50 1 ms, p95 1 ms, errores 0.
+- dashboard: p50 2 ms, p95 2 ms, errores 0.
+- inventario: p50 7 ms, p95 10 ms, errores 0.
+- transbordo: p50 2 ms, p95 3 ms, errores 0.
+- Esta es una medición local pequeña, no un benchmark productivo ni prueba de carga.
+
+VALIDACIÓN FINAL ANTES DE EMPAQUETAR
+- Backend `npm ci`: PASS.
+- Backend `npm run build`: PASS.
+- Backend `npm run test:unit`: PASS; se mantuvieron 15 suites y 43 tests PASS.
+- Frontend `npm ci`: PASS.
+- Frontend `npm run lint`: PASS sin warnings ESLint; permanece la advertencia informativa de compatibilidad de TypeScript 5.9.3.
+- Frontend `npx tsc --noEmit`: PASS.
+- Frontend `npm run build`: PASS; 26 rutas.
+- Auditoría de seguridad: Helmet y rate limiting básico añadidos; npm reportó vulnerabilidades existentes/dependencias transitivas que requieren revisión posterior sin ejecutar `npm audit fix --force`.

@@ -1,0 +1,291 @@
+AUDITORÍA RÁPIDA GRAEL V5
+DATE=2026-08-22T04:02:47+00:00
+
+== TODO|FIXME ==
+grael-frontend/app/(dashboard)/reportes/page.tsx:9:import { formatMoney, formatMoneyShort, MESES, METODO_COLORS, ESTADO_COLORS, exportToCSV } from '@/lib/utils'
+grael-frontend/app/(dashboard)/reportes/page.tsx:280:                color: METODO_COLORS[m.metodo] || '#999'
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:13:import { formatMoney, exportToCSV, METODO_COLORS, MESES } from '@/lib/utils'
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:42:const METODO_ICON: Record<string, any> = {
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:46:const METODO_BG: Record<string, string> = {
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:53:  const Icon = METODO_ICON[pago.metodoPago] || Wallet
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:65:        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${METODO_BG[pago.metodoPago] || 'bg-gray-100 text-gray-600'}`}>
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:104:            const Icon = METODO_ICON[m] || Wallet
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:107:                <div className={`p-1.5 rounded ${METODO_BG[m]}`}><Icon size={14}/></div>
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:172:    color:  METODO_COLORS[m] || '#999',
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:247:          const Icon = METODO_ICON[m.metodo] || Wallet
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:278:              const Icon = METODO_ICON[m.metodo] || Wallet
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:282:                    <div className={`p-1 rounded text-[10px] ${METODO_BG[m.metodo]}`}>
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:73:  const METODOS = [
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:136:              {METODOS.map(m => (
+grael-frontend/app/(dashboard)/inventario/page.tsx:97:            <Select><option>TODOS</option><option>EN ALMACÉN</option><option>RECOGIDO</option></Select>
+grael-frontend/app/(dashboard)/transbordo/page.tsx:149:    <Card className="mb-4"><div className="flex flex-wrap gap-3 items-end"><FormField label="Origen" className="min-w-[170px] flex-1"><Select value={fOrigen} onChange={e=>setFOrigen(e.target.value)}><option value="">TODOS</option>{destinos.map(d=><option key={d.id} value={isDemoMode ? d.nombre : d.id}>{d.nombre}</option>)}</Select></FormField><FormField label="Destino" className="min-w-[170px] flex-1"><Select value={fDestino} onChange={e=>setFDestino(e.target.value)}><option value="">TODOS</option>{destinos.map(d=><option key={d.id} value={isDemoMode ? d.nombre : d.id}>{d.nombre}</option>)}</Select></FormField><FormField label="Desembarque en" className="min-w-[170px] flex-1"><Select value={fDesembarque} onChange={e=>setFDesembarque(e.target.value)}><option value="">TODOS</option>{destinos.map(d=><option key={d.id} value={isDemoMode ? d.nombre : d.id}>{d.nombre}</option>)}</Select></FormField><FormField label="Fecha Inicio" className="min-w-[140px]"><Input type="date" value={fInicio} onChange={e=>setFInicio(e.target.value)} suffix={<CalendarDays size={12}/>} /></FormField><FormField label="Fecha Fin" className="min-w-[140px]"><Input type="date" value={fFin} onChange={e=>setFFin(e.target.value)} suffix={<CalendarDays size={12}/>} /></FormField><Button variant="primary" size="md" icon={<Search size={13}/>} onClick={listar}>Buscar</Button></div></Card>
+grael-frontend/app/(dashboard)/busqueda/page.tsx:305:          tipoCliente: (fTipoCliente || 'TODOS') as FiltrosBusqueda['tipoCliente'],
+grael-frontend/app/(dashboard)/busqueda/page.tsx:349:      const response = await ticketsApi.descargarOS({ numeroTicket:fNumero || undefined, dniRuc:fDniRuc || undefined, estado:(fEstado || '') as any, anulado:fAnulado === 'SI' ? true : fAnulado === 'NO' ? false : null, tipoCliente:(fTipoCliente || 'TODOS') as any, filtrarPor:(fFiltrarPor || '') as any, pagado:fPagado === 'PAGADO' ? true : fPagado === 'NO_PAGADO' ? false : null, tipoEntrega:(fEntrega || '') as any, fechaInicio:fFechaIni, fechaFin:fFechaFin, guiaRemisionRemitente:fGuia || undefined })
+grael-frontend/app/(dashboard)/busqueda/page.tsx:419:            <Select value={fOrigen} onChange={e=>setFOrigen(e.target.value)}><option value="">TODOS</option>
+grael-frontend/app/(dashboard)/busqueda/page.tsx:424:            <Select value={fDestino} onChange={e=>setFDestino(e.target.value)}><option value="">TODOS</option>
+grael-frontend/app/(dashboard)/busqueda/page.tsx:438:          <FormField label="Anulado" className="w-[105px]"><Select value={fAnulado} onChange={e=>setFAnulado(e.target.value)}><option value="">TODOS</option><option value="SI">SI</option><option value="NO">NO</option></Select></FormField>
+grael-frontend/app/(dashboard)/busqueda/page.tsx:440:          <FormField label="Tipo de Cliente" className="w-[130px]"><Select value={fTipoCliente} onChange={e=>setFTipoCliente(e.target.value)}><option value="">TODOS</option><option value="NATURAL">NATURAL</option><option value="JURIDICO">JURÍDICO</option></Select></FormField>
+grael-frontend/lib/utils.ts:126:export const METODO_COLORS: Record<string, string> = {
+
+== MOCK|_DB|TARIFAS_INIT|PAGOS_HOY|INIT ==
+grael-backend/src/gre/gre.service.ts:11:  private readonly provider = (process.env.GRE_PROVIDER || 'MOCK').toUpperCase()
+grael-backend/src/gre/gre.service.ts:47:      modo: 'MOCK', proveedor: this.provider, tipo, codigo, serie: tipo === 'CPE' ? serie : undefined, numero: tipo === 'CPE' ? numero : undefined,
+grael-backend/src/gre/gre.service.ts:48:      estado: 'ACEPTADO_MOCK', ticketId: ticket.id, ticket: ticket.numeroTicket, xml, comprobanteId: comprobante?.id || null,
+grael-backend/src/gre/gre.service.spec.ts:27:    expect(result.estado).toBe('ACEPTADO_MOCK')
+grael-frontend/app/(dashboard)/reportes/page.tsx:10:import { TICKETS_DB, PAGOS_HOY } from '@/lib/data'
+grael-frontend/app/(dashboard)/reportes/page.tsx:125:  const tickets   = TICKETS_DB
+grael-frontend/app/(dashboard)/reportes/page.tsx:129:  const totalCobrado = PAGOS_HOY.reduce((s,p)=>s+p.monto, 0)
+grael-frontend/app/(dashboard)/reportes/page.tsx:131:  const porMetodo = PAGOS_HOY.reduce((acc, p) => {
+grael-frontend/app/(dashboard)/reportes/page.tsx:167:    ingresos: { total:totalCobrado, porMetodo: Object.entries(porMetodo).map(([metodo,monto])=>({ metodo, monto, cantidad:PAGOS_HOY.filter(p=>p.metodoPago===metodo).length })) },
+grael-frontend/app/(dashboard)/configuracion/page.tsx:19:const TARIFAS_INIT: Record<string,string> = {
+grael-frontend/app/(dashboard)/configuracion/page.tsx:50:  const [tarifas, setTarifas] = useState(TARIFAS_INIT)
+grael-frontend/app/(dashboard)/comprobantes/page.tsx:6:import { COMPROBANTES_DB } from '@/lib/data'
+grael-frontend/app/(dashboard)/comprobantes/page.tsx:111:  const [comps, setComps] = useState<Comprobante[]>(COMPROBANTES_DB)
+grael-frontend/app/(dashboard)/comprobantes/page.tsx:119:    if (isDemoMode) { setComps(COMPROBANTES_DB); return }
+grael-frontend/app/(dashboard)/recepcion/page.tsx:23:  calcularMontos, nextNumeroTicket, TICKETS_DB, COSTO_KG_DEFAULT,
+grael-frontend/app/(dashboard)/recepcion/page.tsx:130:      ? TICKETS_DB.filter(t =>
+grael-frontend/app/(dashboard)/recepcion/page.tsx:137:      : TICKETS_DB
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:12:import { PAGOS_HOY, MetodoPago } from '@/lib/data'
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:130:  const [pagos, setPagos]       = useState<PagoCaja[]>(PAGOS_HOY)
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:137:    if (isDemoMode) { setPagos(PAGOS_HOY); return }
+grael-frontend/app/(dashboard)/detraccion/page.tsx:9:import { TICKETS_DB } from '@/lib/data'
+grael-frontend/app/(dashboard)/detraccion/page.tsx:30:  TICKETS_DB
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:9:import { TICKETS_DB } from '@/lib/data'
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:47:    const t = TICKETS_DB.find(t => t.numeroTicket === busqNum.trim() || t.numeroTicket.includes(busqNum.trim()))
+grael-frontend/app/(dashboard)/busqueda-qr/page.tsx:6:import { TICKETS_DB } from '@/lib/data'
+grael-frontend/app/(dashboard)/busqueda-qr/page.tsx:28:        const ticket = TICKETS_DB.find(t => t.numeroTicket === numBusqueda || t.numeroTicket.includes(numBusqueda) || t.id === numBusqueda)
+grael-frontend/app/(dashboard)/busqueda-qr/page.tsx:96:            {TICKETS_DB.slice(0,4).map(t => (
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:12:import { TICKETS_DB, DESTINOS_LIST } from '@/lib/data'
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:27:const ticketsCUS = TICKETS_DB.filter(t => t.destino.nombre === 'CUSCO' && !t.anulado)
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:29:const INIT: Manifiesto[] = [
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:43:    tickets: TICKETS_DB.filter(t=>t.origen.nombre==='LIMA'),
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:50:    tickets: TICKETS_DB.filter(t=>t.origen.nombre==='AREQUIPA'),
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:57:    tickets: TICKETS_DB.filter(t=>t.destino.nombre==='LIMA'),
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:137:  const [items, setItems]         = useState<Manifiesto[]>(INIT)
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:146:    if (isDemoMode) { setItems(INIT); return }
+grael-frontend/app/(dashboard)/inventario/page.tsx:6:import { INVENTARIO_DB } from '@/lib/data'
+grael-frontend/app/(dashboard)/inventario/page.tsx:20:  const [items, setItems] = useState<ItemInventario[]>(INVENTARIO_DB)
+grael-frontend/app/(dashboard)/inventario/page.tsx:25:    if (isDemoMode) { setItems(INVENTARIO_DB); return }
+grael-frontend/app/(dashboard)/bolsa/page.tsx:6:import { TICKETS_DB } from '@/lib/data'
+grael-frontend/app/(dashboard)/bolsa/page.tsx:12:const INIT: Bolsa[] = [
+grael-frontend/app/(dashboard)/bolsa/page.tsx:13:  { id:'b1', codigo:'BOL-2026-0018', destino:'LIMA',         fecha:'2026-02-24', estado:'ABIERTA',    tickets:TICKETS_DB.filter(t=>t.destino.nombre==='LIMA'),         total:TICKETS_DB.filter(t=>t.destino.nombre==='LIMA').reduce((s,t)=>s+t.total,0)         },
+grael-frontend/app/(dashboard)/bolsa/page.tsx:14:  { id:'b2', codigo:'BOL-2026-0017', destino:'QUILLABANBA',  fecha:'2026-02-24', estado:'ABIERTA',    tickets:TICKETS_DB.filter(t=>t.destino.nombre==='QUILLABANBA'),  total:TICKETS_DB.filter(t=>t.destino.nombre==='QUILLABANBA').reduce((s,t)=>s+t.total,0)  },
+grael-frontend/app/(dashboard)/bolsa/page.tsx:15:  { id:'b3', codigo:'BOL-2026-0015', destino:'AREQUIPA',     fecha:'2026-02-22', estado:'DESPACHADA', tickets:TICKETS_DB.filter(t=>t.destino.nombre==='AREQUIPA'),     total:TICKETS_DB.filter(t=>t.destino.nombre==='AREQUIPA').reduce((s,t)=>s+t.total,0)     },
+grael-frontend/app/(dashboard)/bolsa/page.tsx:20:  const avail = TICKETS_DB.filter(t => !t.anulado && t.destino.nombre===bolsa.destino && !bolsa.tickets.find(bt=>bt.id===t.id) && (q ? t.numeroTicket.includes(q)||t.remitente.razonSocial.toLowerCase().includes(q.toLowerCase()) : true))
+grael-frontend/app/(dashboard)/bolsa/page.tsx:58:  const [bolsas,setBolsas]=useState<Bolsa[]>(INIT)
+grael-frontend/app/(dashboard)/dashboard/page.tsx:9:import { getKPIs, TICKETS_DB, DESEMBARQUE_DB, PAGOS_HOY } from '@/lib/data'
+grael-frontend/app/(dashboard)/dashboard/page.tsx:88:  const totalCajaDia = PAGOS_HOY.reduce((s, p) => s + p.monto, 0)
+grael-frontend/app/(dashboard)/dashboard/page.tsx:89:  const pendDesembarque = DESEMBARQUE_DB.filter(d => d.estado === 'PENDIENTE_VERIFICACION').length
+grael-frontend/app/(dashboard)/dashboard/page.tsx:91:  const recentTickets = [...TICKETS_DB]
+grael-frontend/app/(dashboard)/dashboard/page.tsx:164:            <p className="text-[11px] text-gray-400 mt-0.5">{PAGOS_HOY.length} cobros realizados</p>
+grael-frontend/app/(dashboard)/dashboard/page.tsx:167:                const monto = PAGOS_HOY.filter(p=>p.metodoPago===m).reduce((s,p)=>s+p.monto,0)
+grael-frontend/app/(dashboard)/dashboard/page.tsx:205:              {DESEMBARQUE_DB.slice(0,3).map(d => (
+grael-frontend/app/(dashboard)/desembarque/page.tsx:9:import { DESEMBARQUE_DB, DESTINOS_LIST } from '@/lib/data'
+grael-frontend/app/(dashboard)/desembarque/page.tsx:213:  const [items, setItems]          = useState<ItemDesembarque[]>(DESEMBARQUE_DB)
+grael-frontend/app/(dashboard)/desembarque/page.tsx:221:    if (isDemoMode) { setItems(DESEMBARQUE_DB); return }
+grael-frontend/app/(dashboard)/busqueda/page.tsx:11:import { TICKETS_DB } from '@/lib/data'
+grael-frontend/app/(dashboard)/busqueda/page.tsx:273:  const [tickets, setTickets] = useState<Ticket[]>(TICKETS_DB)
+grael-frontend/app/(dashboard)/busqueda/page.tsx:274:  const [totalTickets, setTotalTickets] = useState(TICKETS_DB.length)
+grael-frontend/app/(dashboard)/busqueda/page.tsx:322:    let data = [...TICKETS_DB]
+grael-frontend/components/layout/Sidebar.tsx:10:import { TICKETS_DB, DESEMBARQUE_DB } from '@/lib/data'
+grael-frontend/components/layout/Sidebar.tsx:42:  if (href==='/busqueda')    { const n=TICKETS_DB.filter(t=>!t.pagado&&!t.anulado).length;     return n>0?{count:n,cls:'bg-amber-100 text-amber-700'}:null }
+grael-frontend/components/layout/Sidebar.tsx:43:  if (href==='/desembarque') { const n=DESEMBARQUE_DB.filter(d=>d.estado==='PENDIENTE_VERIFICACION').length; return n>0?{count:n,cls:'bg-indigo-100 text-indigo-700'}:null }
+grael-frontend/components/layout/Sidebar.tsx:44:  if (href==='/inventario')  { const n=DESEMBARQUE_DB.filter(d=>d.estado==='PENDIENTE_VERIFICACION').length; return n>0?{count:n,cls:'bg-blue-100 text-blue-700'}:null }
+grael-frontend/lib/data.ts:12:const RENIEC_DB: Record<string, PersonaNatural> = {
+grael-frontend/lib/data.ts:24:const SUNAT_DB: Record<string, Empresa> = {
+grael-frontend/lib/data.ts:35:  return RENIEC_DB[dni] || null
+grael-frontend/lib/data.ts:39:  return SUNAT_DB[ruc] || null
+grael-frontend/lib/data.ts:87:export const TICKETS_DB: Ticket[] = [
+grael-frontend/lib/data.ts:190:export const COMPROBANTES_DB: Comprobante[] = [
+grael-frontend/lib/data.ts:211:export const DESEMBARQUE_DB: ItemDesembarque[] = [
+grael-frontend/lib/data.ts:226:export const PAGOS_HOY: PagoCaja[] = [
+grael-frontend/lib/data.ts:243:export const NOTIFICACIONES_INIT: Notificacion[] = [
+grael-frontend/lib/data.ts:254:  const hoy = TICKETS_DB.filter(t => t.fechaEmision.startsWith('2026-02-24'))
+grael-frontend/lib/data.ts:255:  const pendCobro = TICKETS_DB.filter(t => !t.pagado && !t.anulado)
+grael-frontend/lib/data.ts:256:  const totalCobrado = PAGOS_HOY.reduce((s,p)=>s+p.monto, 0)
+grael-frontend/lib/data.ts:257:  const enTransito = TICKETS_DB.filter(t => t.estado === 'EN_TRANSITO')
+grael-frontend/lib/data.ts:258:  const desembarque = TICKETS_DB.filter(t => t.estado === 'DESEMBARQUE_EN_DESTINO')
+grael-frontend/lib/data.ts:266:    totalMes:        TICKETS_DB.filter(t=>!t.anulado).length,
+grael-frontend/lib/data.ts:267:    cobradosMes:     TICKETS_DB.filter(t=>t.pagado).reduce((s,t)=>s+t.total, 0),
+grael-frontend/lib/data.ts:279:export const INVENTARIO_DB: ItemInventario[] = [
+
+== console\.log ==
+grael-backend/src/database/seeds/run-seeds.ts:22:  console.log('📦 Conectado a PostgreSQL. Iniciando seeds...\n')
+grael-backend/src/database/seeds/run-seeds.ts:29:    console.log('  → Sembrando destinos...')
+grael-backend/src/database/seeds/run-seeds.ts:53:    console.log(`     ✓ ${Object.keys(destinos).length} destinos`)
+grael-backend/src/database/seeds/run-seeds.ts:56:    console.log('  → Sembrando sedes y almacenes V2...')
+grael-backend/src/database/seeds/run-seeds.ts:86:    console.log(`     ✓ ${Object.keys(sedes).length} sedes V2`)
+grael-backend/src/database/seeds/run-seeds.ts:89:    console.log('  → Sembrando usuarios...')
+grael-backend/src/database/seeds/run-seeds.ts:116:    console.log(`     ✓ ${Object.keys(usuarios).length} usuarios`)
+grael-backend/src/database/seeds/run-seeds.ts:119:    console.log('  → Sembrando programaciones...')
+grael-backend/src/database/seeds/run-seeds.ts:146:    console.log(`     ✓ ${Object.keys(progs).length} programaciones`)
+grael-backend/src/database/seeds/run-seeds.ts:149:    console.log('  → Sembrando clientes...')
+grael-backend/src/database/seeds/run-seeds.ts:180:    console.log(`     ✓ ${clientes.length} clientes`)
+grael-backend/src/database/seeds/run-seeds.ts:183:    console.log('  → Sembrando tickets...')
+grael-backend/src/database/seeds/run-seeds.ts:322:    console.log(`     ✓ ${totalTickets} tickets`)
+grael-backend/src/database/seeds/run-seeds.ts:325:    console.log('  → Sembrando pagos...')
+grael-backend/src/database/seeds/run-seeds.ts:342:    console.log(`     ✓ pagos registrados`)
+grael-backend/src/database/seeds/run-seeds.ts:345:    console.log('  → Sembrando desembarques...')
+grael-backend/src/database/seeds/run-seeds.ts:360:    console.log(`     ✓ desembarques registrados`)
+grael-backend/src/database/seeds/run-seeds.ts:363:    console.log('  → Sembrando configuración...')
+grael-backend/src/database/seeds/run-seeds.ts:391:    console.log(`     ✓ ${configs.length} configuraciones`)
+grael-backend/src/database/seeds/run-seeds.ts:394:    console.log('  → Sembrando vehículos, conductores y tarifas V2...')
+grael-backend/src/database/seeds/run-seeds.ts:413:    console.log('     ✓ flota y tarifas V2')
+grael-backend/src/database/seeds/run-seeds.ts:416:    console.log('  → Sembrando bultos y tracking inicial...')
+grael-backend/src/database/seeds/run-seeds.ts:431:    console.log('     ✓ bultos y tracking inicial')
+grael-backend/src/database/seeds/run-seeds.ts:435:    console.log('\n✅ Seeds completados exitosamente')
+grael-backend/src/database/seeds/run-seeds.ts:436:    console.log('   Usuarios creados:')
+grael-backend/src/database/seeds/run-seeds.ts:437:    console.log('   → jesus.cutisaca / admin123  (ADMIN_SEDE)')
+grael-backend/src/database/seeds/run-seeds.ts:438:    console.log('   → leydy.diana    / op123     (OPERADOR)')
+grael-backend/src/database/seeds/run-seeds.ts:439:    console.log('   → maria.garcia   / caj123    (CAJERO)')
+grael-backend/src/database/seeds/run-seeds.ts:440:    console.log('   → supervisor     / super123  (SUPERVISOR)\n')
+
+== Object\.assign ==
+grael-backend/src/desembarque/desembarque.service.ts:58:      Object.assign(d, { estado: EstadoDesembarque.ENTREGADO, horaEntrega: new Date(), ...dto, usuario })
+
+== @Body\(\).*any|@Query\(\).*any|@Param\(\).*any ==
+grael-backend/src/programaciones/programaciones.controller.ts:10:  @Post()       crear(@Body() dto: any)                              { return this.svc.crear(dto) }
+grael-backend/src/programaciones/programaciones.controller.ts:11:  @Patch(':id') update(@Param('id') id: string, @Body() dto: any)   { return this.svc.update(id, dto) }
+grael-backend/src/comprobantes/comprobantes.controller.ts:8:  @Get()                listar(@Query() q: any)           { return this.svc.listar(q) }
+grael-backend/src/bultos/bultos.controller.ts:18:  @Get() listar(@Query() query: any, @Request() req: any) { return this.service.listar(query, req.user) }
+grael-backend/src/bultos/bultos.controller.ts:22:  @Post() crear(@Body() body: CreateBultoV4Dto, @Request() req: any) { return this.service.crear(body, req.user?.sub, req.user) }
+grael-backend/src/bultos/bultos.controller.ts:26:  @Patch(':id/estado') cambiarEstado(@Param('id') id: string, @Body() body: ChangeBultoStateV4Dto, @Request() req: any) {
+grael-backend/src/pagos/pagos.controller.ts:22:  @Post('caja/abrir') abrirCaja(@Body() body: OpenCashV4Dto, @Request() req: any) { return this.service.abrirCaja(body, req.user.sub, req.user) }
+grael-backend/src/pagos/pagos.controller.ts:26:  @Post('caja/:id/movimientos') registrarMovimiento(@Param('id') id: string, @Body() body: CashMovementV4Dto, @Request() req: any) { return this.service.registrarMovimiento(id, body, req.user.sub, req.user) }
+grael-backend/src/pagos/pagos.controller.ts:30:  @Post('caja/:id/cerrar') cerrarCaja(@Param('id') id: string, @Body() body: CloseCashV4Dto, @Request() req: any) { return this.service.cerrarCaja(id, body, req.user.sub, req.user) }
+grael-backend/src/manifiesto/manifiesto.controller.ts:18:  listar(@Query() query: any) { return this.service.listar(query) }
+grael-backend/src/manifiesto/manifiesto.controller.ts:24:  crear(@Body() body: any, @Request() req: any) { return this.service.crear(body, req.user?.sub) }
+grael-backend/src/manifiesto/manifiesto.controller.ts:27:  agregarTickets(@Param('id') id: string, @Body() body: any) { return this.service.agregarTickets(id, body.ticketIds || (body.ticketId ? [body.ticketId] : [])) }
+grael-backend/src/manifiesto/manifiesto.controller.ts:43:  cargarBulto(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.cargarBulto(id, body.codigo, req.user?.sub) }
+grael-backend/src/manifiesto/manifiesto.controller.ts:48:  asignarFlota(@Param('id') id: string, @Body() body: any) { return this.service.asignarFlota(id, body) }
+grael-backend/src/manifiesto/manifiesto.controller.ts:53:  cambiarEstado(@Param('id') id: string, @Body() body: any) { return this.service.cambiarEstado(id, body.estado as EstadoManifiesto) }
+grael-backend/src/tickets/tickets.controller.ts:19:  findAll(@Query() q: any, @Request() req: any) { return this.service.findAll(q, req.user) }
+grael-backend/src/tickets/tickets.controller.ts:25:  exportarOS(@Query() q: any, @Res() res: Response, @Request() req: any) {
+grael-backend/src/tickets/tickets.controller.ts:46:  @Post() crear(@Body() dto: CreateTicketDto, @Request() req: any) { return this.service.crear(dto, req.user.sub) }
+grael-backend/src/tickets/tickets.controller.ts:50:  @Patch(':id') update(@Param('id') id: string, @Body() dto: UpdateTicketDto, @Request() req: any) { return this.service.update(id, dto, req.user) }
+grael-backend/src/tickets/tickets.controller.ts:54:  @Patch(':id/anular') anular(@Param('id') id: string, @Body() body: CancelTicketDto, @Request() req: any) { return this.service.anular(id, body.motivo, req.user.sub, req.user) }
+grael-backend/src/tickets/tickets.controller.ts:58:  @Patch(':id/pagar') pagar(@Param('id') id: string, @Body() body: PayTicketDto, @Request() req: any) { return this.service.pagar(id, body?.metodoPago, req.user.sub, body?.monto, req.user) }
+grael-backend/src/tickets/tickets.controller.ts:62:  @Patch(':id/estado') cambiarEstado(@Param('id') id: string, @Body() body: ChangeTicketStateDto, @Request() req: any) { return this.service.cambiarEstado(id, body.estado, req.user) }
+grael-backend/src/transbordo/transbordo.controller.ts:16:  listar(@Query() params: any) {
+grael-backend/src/transbordo/transbordo.controller.ts:34:  crear(@Body() dto: any, @Request() req: any) {
+grael-backend/src/usuarios/usuarios.controller.ts:10:  @Post()            crear(@Body() dto: any)                               { return this.svc.crear(dto) }
+grael-backend/src/usuarios/usuarios.controller.ts:11:  @Patch(':id')      update(@Param('id') id: string, @Body() dto: any)    { return this.svc.update(id, dto) }
+grael-backend/src/tracking/tracking.controller.ts:32:  registrar(@Body() body: ManualTrackingV4Dto, @Request() req: any) { return this.service.registrar(body, req.user?.sub, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:16:  @Get('sedes') sedes(@Query() query: any, @Request() req: any) { return this.service.sedes(query, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:19:  @Post('sedes') crearSede(@Body() body: any) { return this.service.crearSede(body) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:22:  @Patch('sedes/:id') actualizarSede(@Param('id') id: string, @Body() body: any) { return this.service.actualizarSede(id, body) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:24:  @Get('almacenes') almacenes(@Query() query: any, @Request() req: any) { return this.service.almacenes(query, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:27:  @Post('almacenes') crearAlmacen(@Body() body: any, @Request() req: any) { return this.service.crearAlmacen(body, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:31:  @Post('ubicaciones-almacen') crearUbicacion(@Body() body: any, @Request() req: any) { return this.service.crearUbicacion(body, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:33:  @Get('vehiculos') vehiculos(@Query() query: any, @Request() req: any) { return this.service.vehiculos(query, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:36:  @Post('vehiculos') crearVehiculo(@Body() body: any, @Request() req: any) { return this.service.crearVehiculo(body, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:39:  @Patch('vehiculos/:id') actualizarVehiculo(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.actualizarVehiculo(id, body, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:41:  @Get('conductores') conductores(@Query() query: any, @Request() req: any) { return this.service.conductores(query, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:44:  @Post('conductores') crearConductor(@Body() body: any, @Request() req: any) { return this.service.crearConductor(body, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:47:  @Patch('conductores/:id') actualizarConductor(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.actualizarConductor(id, body, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:49:  @Get('tarifas') tarifas(@Query() query: any, @Request() req: any) { return this.service.tarifas(query, req.user) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:52:  @Post('tarifas') crearTarifa(@Body() body: any) { return this.service.crearTarifa(body) }
+grael-backend/src/catalogos-v2/catalogos-v2.controller.ts:55:  @Patch('tarifas/:id') actualizarTarifa(@Param('id') id: string, @Body() body: any) { return this.service.actualizarTarifa(id, body) }
+grael-backend/src/incidencias/incidencias.controller.ts:15:  @Get() listar(@Query() query: any, @Request() req: any) { return this.service.listar(query, req.user) }
+grael-backend/src/incidencias/incidencias.controller.ts:19:  @Post() crear(@Body() body: any, @Request() req: any) { return this.service.crear(body, req.user?.sub, req.user) }
+grael-backend/src/incidencias/incidencias.controller.ts:23:  @Patch(':id/resolver') resolver(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.resolver(id, body, req.user?.sub, req.user) }
+grael-backend/src/clientes/clientes.controller.ts:11:  @Post()              crear(@Body() dto: any)                { return this.svc.crear(dto) }
+grael-backend/src/clientes/clientes.controller.ts:12:  @Patch(':id')        update(@Param('id') id: string, @Body() dto: any) { return this.svc.update(id, dto) }
+grael-backend/src/desembarque/desembarque.controller.ts:8:  @Get()                  listar(@Query() q: any)                        { return this.svc.listar(q) }
+grael-backend/src/desembarque/desembarque.controller.ts:10:  @Patch(':id/entregar')  entregar(@Param('id') id: string, @Body() dto: any) { return this.svc.entregar(id, dto) }
+grael-backend/src/desembarque/desembarque.controller.ts:11:  @Patch(':id/observar')  observar(@Param('id') id: string, @Body() b: any)   { return this.svc.observar(id, b.observacion) }
+grael-backend/src/entregas/entregas.controller.ts:15:  @Get() listar(@Query() query: any, @Request() req: any) { return this.service.listar(query, req.user) }
+grael-backend/src/entregas/entregas.controller.ts:19:  @Post() crear(@Body() body: any, @Request() req: any) { return this.service.crear(body, req.user?.sub, req.user) }
+grael-backend/src/entregas/entregas.controller.ts:23:  @Patch(':id/entregar') entregar(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.entregar(id, body, req.user?.sub, req.user) }
+grael-backend/src/entregas/entregas.controller.ts:27:  @Patch(':id/intento-fallido') intentoFallido(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.intentoFallido(id, body, req.user?.sub, req.user) }
+grael-backend/src/gre/gre.controller.ts:18:  emitir(@Body() body: any, @Request() req: any) {
+grael-backend/src/inventario/inventario.controller.ts:16:  @Get('bultos') listar(@Query() query: any) { return this.service.listar(query) }
+grael-backend/src/inventario/inventario.controller.ts:17:  @Get('movimientos') movimientos(@Query() query: any) { return this.service.movimientos(query) }
+grael-backend/src/inventario/inventario.controller.ts:21:  @Post('movimientos') mover(@Body() body: any, @Request() req: any) { return this.service.mover(body, req.user?.sub) }
+grael-backend/src/egresos/egresos.controller.ts:16:  @Get() listar(@Query() query: any, @Request() req: any) { return this.service.listar(query, req.user) }
+grael-backend/src/egresos/egresos.controller.ts:20:  @Post() crear(@Body() body: any, @Request() req: any) { return this.service.crear(body, req.user.sub, req.user) }
+grael-backend/src/egresos/egresos.controller.ts:24:  @Patch(':id/aprobar') aprobar(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.aprobar(id, body || {}, req.user.sub, req.user) }
+grael-backend/src/egresos/egresos.controller.ts:28:  @Patch(':id/rechazar') rechazar(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.rechazar(id, body?.motivo, req.user.sub, req.user) }
+grael-backend/src/reparto/reparto.controller.ts:16:  @Get() listar(@Query() query: any, @Request() req: any) { return this.service.listar(query, req.user) }
+grael-backend/src/reparto/reparto.controller.ts:21:  @Post() crear(@Body() body: any, @Request() req: any) { return this.service.crear(body, req.user.sub, req.user) }
+grael-backend/src/reparto/reparto.controller.ts:29:  @Patch('detalle/:id/intento') intento(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.registrarIntento(id, body, req.user.sub, req.user) }
+
+== JWT_SECRET ==
+grael-backend/src/auth/auth.module.ts:19:        const secret = cfg.get<string>('JWT_SECRET')
+grael-backend/src/auth/auth.module.ts:20:        if (!secret || secret === 'CAMBIAR_ESTO') throw new Error('JWT_SECRET es obligatorio para iniciar el backend')
+grael-backend/src/auth/jwt.strategy.ts:9:    const secret = process.env.JWT_SECRET
+grael-backend/src/auth/jwt.strategy.ts:10:    if (!secret || secret === 'CAMBIAR_ESTO') throw new Error('JWT_SECRET es obligatorio para validar tokens')
+grael-backend/src/auth/jwt.strategy.spec.ts:4:  const previousSecret = process.env.JWT_SECRET
+grael-backend/src/auth/jwt.strategy.spec.ts:6:  beforeAll(() => { process.env.JWT_SECRET = 'v4-test-secret' })
+grael-backend/src/auth/jwt.strategy.spec.ts:8:    if (previousSecret === undefined) delete process.env.JWT_SECRET
+grael-backend/src/auth/jwt.strategy.spec.ts:9:    else process.env.JWT_SECRET = previousSecret
+
+== synchronize ==
+grael-backend/src/database/data-source.ts:15:  synchronize: false,
+grael-backend/src/database/database.module.ts:19:        synchronize: cfg.get<string>('DB_SYNC', 'false') === 'true',
+
+== setTimeout ==
+grael-frontend/app/(dashboard)/reportes/page.tsx:188:    await new Promise(r => setTimeout(r,800))
+grael-frontend/app/(dashboard)/configuracion/page.tsx:76:    await new Promise(r => setTimeout(r, 800))
+grael-frontend/app/(dashboard)/configuracion/page.tsx:80:    setTimeout(() => setSaved(false), 3000)
+grael-frontend/app/(dashboard)/recepcion/page.tsx:310:        await new Promise(resolve => setTimeout(resolve, 500))
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:46:    await new Promise(r => setTimeout(r, 600))
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:60:    await new Promise(r => setTimeout(r, 800))
+grael-frontend/app/(dashboard)/busqueda-qr/page.tsx:27:        await new Promise(r => setTimeout(r, 300))
+grael-frontend/lib/utils.ts:97:  setTimeout(() => { win.print(); win.close() }, 400)
+grael-frontend/lib/utils.ts:102:  let timer: ReturnType<typeof setTimeout>
+grael-frontend/lib/utils.ts:105:    timer = setTimeout(() => fn(...args), ms)
+grael-frontend/lib/data.ts:34:  await new Promise(r => setTimeout(r, 700))
+grael-frontend/lib/data.ts:38:  await new Promise(r => setTimeout(r, 700))
+
+== toast\.success ==
+grael-frontend/app/(dashboard)/reportes/page.tsx:190:    toast.success('Reporte actualizado')
+grael-frontend/app/(dashboard)/reportes/page.tsx:217:                toast.success('CSV exportado')
+grael-frontend/app/(dashboard)/configuracion/page.tsx:79:    toast.success('Configuración guardada correctamente')
+grael-frontend/app/(dashboard)/configuracion/page.tsx:307:                    onClick={()=>{ setPassForm({actual:'',nueva:'',confirmar:''}); toast.success('Contraseña actualizada') }}>
+grael-frontend/app/(dashboard)/recepcion/page.tsx:67:          setStatus('ok'); toast.success(`${label} encontrado en RENIEC`)
+grael-frontend/app/(dashboard)/recepcion/page.tsx:73:          setStatus('ok'); toast.success('Empresa encontrada en SUNAT')
+grael-frontend/app/(dashboard)/recepcion/page.tsx:270:    toast.success(`Ticket ${t.numeroTicket} cargado — complete destino y destinatario`)
+grael-frontend/app/(dashboard)/recepcion/page.tsx:299:    toast.success('Mercadería agregada')
+grael-frontend/app/(dashboard)/recepcion/page.tsx:311:        toast.success(`Ticket demo generado: ${nextNumeroTicket()}`)
+grael-frontend/app/(dashboard)/recepcion/page.tsx:345:        toast.success(`Ticket generado: ${response.data.numeroTicket}`)
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:90:            onClick={() => { toast.success('Caja cerrada'); onClose() }}>Cerrar Caja</Button>
+grael-frontend/app/(dashboard)/caja-diaria/page.tsx:205:                toast.success('CSV exportado')
+grael-frontend/app/(dashboard)/detraccion/page.tsx:66:    toast.success('Declarado en el sistema SUNAT')
+grael-frontend/app/(dashboard)/detraccion/page.tsx:72:    toast.success(`Pago registrado — N° ${nro}`)
+grael-frontend/app/(dashboard)/detraccion/page.tsx:84:                toast.success('CSV exportado')
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:55:    toast.success('Ticket encontrado')
+grael-frontend/app/(dashboard)/pago-sin-comprobante/page.tsx:67:    toast.success(`✅ Pago registrado — ${data.metodoPago} — ${formatMoney(data.monto)}`)
+grael-frontend/app/(dashboard)/busqueda-qr/page.tsx:197:                onClick={() => toast.success('Redirigiendo a cobro...')}>
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:90:    toast.success(`Manifiesto ${codigo} creado`)
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:186:      toast.success(`${current.codigo} → ${ac.next.replace('_',' ')}`)
+grael-frontend/app/(dashboard)/manifiesto/page.tsx:194:      toast.success(`${current.codigo} → ${ac.next.replace('_',' ')}`)
+grael-frontend/app/(dashboard)/inventario/page.tsx:46:      toast.success(estado === 'ENTREGADO' ? 'Marcado como recogido' : 'Marcado como devuelto')
+grael-frontend/app/(dashboard)/inventario/page.tsx:49:    try { await bultosApi.cambiarEstado(item.id, estado, estado === 'ENTREGADO' ? 'Recojo en agencia' : 'Devolución'); await cargarInventario(); toast.success('Estado actualizado') }
+grael-frontend/app/(dashboard)/transbordo/page.tsx:125:      setItems(prev=>[item, ...prev]); toast.success(`Transbordo ${item.codigo} creado`); return
+grael-frontend/app/(dashboard)/transbordo/page.tsx:128:    setItems(prev=>[mapApiItem(response.data), ...prev]); toast.success(`Transbordo ${response.data.codigo} creado`)
+grael-frontend/app/(dashboard)/transbordo/page.tsx:135:    setItems(prev=>prev.map(current=>current.id===item.id ? {...current, estado} : current)); toast.success(`${item.codigo} actualizado`)
+grael-frontend/app/(dashboard)/bolsa/page.tsx:67:    setShowNew(false); toast.success(`Bolsa ${code} creada`)
+grael-frontend/app/(dashboard)/bolsa/page.tsx:71:    toast.success(`${tickets.length} ticket(s) agregado(s)`)
+grael-frontend/app/(dashboard)/bolsa/page.tsx:73:  const despachar=(id:string)=>{setBolsas(bs=>bs.map(b=>b.id===id?{...b,estado:'DESPACHADA'}:b));toast.success('Bolsa despachada')}
+grael-frontend/app/(dashboard)/desembarque/page.tsx:258:      toast.success(`Ticket ${item.numeroTicket} verificado — listo para entrega`)
+grael-frontend/app/(dashboard)/desembarque/page.tsx:267:      toast.success(`Entrega registrada para ticket ${item.numeroTicket}`)
+grael-frontend/app/(dashboard)/busqueda/page.tsx:361:        toast.success(`Acción demo aplicada: ${action}`)
+grael-frontend/app/(dashboard)/busqueda/page.tsx:382:      toast.success('Ticket actualizado')
+grael-frontend/app/(dashboard)/busqueda/page.tsx:471:            onClick={()=>toast.success('Pago masivo registrado')}>Pagar seleccionados</Button>
+grael-frontend/app/(dashboard)/busqueda/page.tsx:473:            onClick={()=>toast.success('Marcados como entregados')}>Marcar entregados</Button>
+grael-frontend/app/(dashboard)/reparto/page.tsx:45:    if (isDemoMode) { toast.success(`Demo: ${kind === 'iniciar' ? 'reparto iniciado' : 'planilla finalizada'}`); return }
+grael-frontend/app/(dashboard)/reparto/page.tsx:49:      toast.success(kind === 'iniciar' ? 'Reparto iniciado' : 'Planilla finalizada')
+grael-frontend/app/(dashboard)/egresos/page.tsx:37:    if (isDemoMode) { toast.success('Demo: egreso creado como pendiente'); setConcepto(''); setMonto(''); return }
+grael-frontend/app/(dashboard)/egresos/page.tsx:38:    try { await egresosApi.crear({ categoria, concepto, monto: value, afectaCaja: true }); toast.success('Egreso creado'); setConcepto(''); setMonto(''); await load() }
+grael-frontend/app/(dashboard)/egresos/page.tsx:43:    if (isDemoMode) { toast.success(`Demo: egreso ${approve ? 'aprobado' : 'rechazado'}`); return }
+grael-frontend/app/(dashboard)/egresos/page.tsx:44:    try { if (approve) await egresosApi.aprobar(id); else await egresosApi.rechazar(id, 'Rechazado desde panel'); toast.success(approve ? 'Egreso aprobado' : 'Egreso rechazado'); await load() }
+grael-frontend/app/login/page.tsx:34:      toast.success('Bienvenido al sistema GRAEL')
+grael-frontend/app/login/page.tsx:50:    toast.success('Acceso demo activado')
+grael-frontend/components/layout/Topbar.tsx:82:    toast.success('Sesión cerrada')
+
+== clasificación inicial ==
+válida en Demo: *_DB/INIT/TARIFAS_INIT/PAGOS_HOY cuando se usa bajo isDemoMode; revisar uso real.
+deuda técnica: any en controladores/servicios, botones toast sin mutación, módulos legacy sin DTO/RBAC.
+riesgo seguridad: JWT_SECRET/synchronize/configuración/usuarios/finanzas si no tienen guardas o validación estricta.
+legacy compatible: contratos históricos y páginas que conservan fallback Demo explícito.

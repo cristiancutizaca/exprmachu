@@ -1,0 +1,125 @@
+GRAEL V9 — REGISTRO DE EJECUCIONES
+=================================
+Fecha de ejecución local: 2026-08-25
+Worktree: /home/ubuntu/grael_work/GRAEL_V9_WORK
+Base: ZIP oficial GRAEL_MANUS_V8_FINAL.zip
+Stack: Next.js 14.2.3 / React / Tailwind / Zustand / Axios; NestJS 10 / TypeORM 0.3 / PostgreSQL 16
+
+1. BACKEND BASELINE
+--------------------
+Comandos:
+  cd grael-backend
+  npm ci
+  npm run migration:run
+  npm run seed
+  npm run build
+  npm run test:unit
+Resultado final:
+  build PASS
+  16 suites PASS
+  58 tests PASS
+  0 FAIL / 0 SKIP
+
+2. FRONTEND BASELINE
+---------------------
+Comandos:
+  cd grael-frontend
+  npm ci
+  npm run lint
+  npx tsc --noEmit
+  NEXT_PUBLIC_API_URL=http://127.0.0.1:3002/api/v1 npm run build
+Resultado final:
+  lint PASS; advertencia no bloqueante TS 5.9.3 fuera del rango declarado de typescript-eslint
+  TypeScript PASS
+  build PASS; 26 rutas Next
+  23 páginas físicas page.tsx
+
+3. E2E PLAYWRIGHT
+------------------
+Comando:
+  npx playwright test e2e/core-v7.spec.ts
+Resultado final:
+  4 passed, 0 failed
+Casos:
+  login/drawer/logout PASS
+  navegación Comprobantes/Detracción PASS
+  Búsqueda QR real PASS
+  Caja Diaria apertura/movimiento/cierre PASS
+
+4. SMOKE CAJA REAL
+-------------------
+Script temporal: /tmp/grael_v9_cash_smoke.mjs
+Resultado:
+  cross_site_open_rejected HTTP 403 SEDE_FORBIDDEN
+  open_cash HTTP 201 ABIERTA
+  cash_movement HTTP 201
+  cash_summary HTTP 200 expected=120.00 expectedCash=120
+  concurrent_close statuses=[201,400], accepted=1
+  daily_scoped HTTP 200
+
+5. SMOKE CORE REAL
+-------------------
+Script: scripts/smoke-core-v9.mjs
+Resultado:
+  incident_custody HTTP 201; sede de incidencia = sedeActualId del bulto
+  auditor_read_only HTTP 403 ROLE_FORBIDDEN
+  supervisor_resolves HTTP 200
+  create_delivery_at_custody HTTP 201
+  confirm_delivery HTTP 200; estado ENTREGADA
+  gre_mock HTTP 201; estado ACEPTADO_MOCK; hashLength=64
+
+6. INTEGRIDAD
+--------------
+Comando:
+  DB_HOST=localhost DB_PORT=5432 DB_USER=grael_user DB_PASS=<externo> DB_NAME=grael_db bash scripts/check-data-integrity-v9.sh
+Resultado:
+  9 checks ejecutados
+  0 violaciones en todos los checks
+
+7. PERFORMANCE
+---------------
+Comando:
+  API_BASE_URL=http://127.0.0.1:3002 GRAEL_PERF_USER=supervisor GRAEL_PERF_PASSWORD=<externo> PERF_REQUESTS=30 node scripts/performance-v9.js
+Resultado:
+  health: errors=0 p50=2ms p95=3ms max=5ms
+  dashboard: errors=0 p50=4ms p95=5ms max=5ms
+  inventario: errors=0 p50=12ms p95=14ms max=16ms
+  transbordo: errors=0 p50=4ms p95=5ms max=5ms
+
+8. BACKUP/RESTORE DRILL
+------------------------
+Comandos:
+  DB_NAME=grael_db bash scripts/backup-db.sh validation/v9/backup-drill
+  ALLOW_DB_RESTORE=YES DB_NAME=grael_restore_v9 bash scripts/restore-db.sh <dump>
+Resultado:
+  base operativa no eliminada
+  base aislada creada y restaurada
+  conteos coincidentes: tickets=6, bultos=24, pagos=3, migraciones=24
+  base aislada eliminada
+  CREATEDB temporal revocado
+  RESTORE DRILL PASS
+
+9. AUDITORÍA NPM
+-----------------
+Comandos:
+  cd grael-backend && npm audit --json
+  cd grael-frontend && npm audit --json
+Resultado:
+  backend: 27 total = 3 low, 16 moderate, 8 high, 0 critical
+  frontend: 8 total = 0 low, 0 moderate, 7 high, 1 critical
+  npm audit fix --force NO ejecutado
+
+10. REVISIÓN DE PAQUETE
+-----------------------
+Resultado esperado antes de empaquetar:
+  excluir .git, node_modules, dist, .next, caches, test-results, .env, tsbuildinfo y dumps
+  preservar lockfiles, fuente, migraciones, tests, scripts y documentación V9
+  ejecutar git diff --check
+
+VEREDICTO
+---------
+PARCIAL — preparado para UAT controlado acotado.
+No preparado para producción nacional.
+GRE/CPE = MOCK.
+SUNAT real = BLOQUEADO EXTERNO.
+E2E nacional integral Lima→Cusco = PENDIENTE.

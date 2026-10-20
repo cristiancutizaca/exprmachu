@@ -1,0 +1,71 @@
+GRAEL V10 — REGISTRO DE EJECUCIONES
+Fecha de validación: 2026-08-26
+Base: GRAEL_MANUS_V9_FINAL.zip
+DB: grael_v10_db, PostgreSQL 16 local; secretos no incluidos en el paquete
+
+[1] BASE Y MIGRACIONES
+Comando: cd grael-backend && npm run seed:fresh
+Resultado: PASS; schema drop, 26 migraciones y seed completados.
+Evidencia: validation/v10/seed-fresh-corrected.log
+
+[2] BACKEND
+Comando: npm run build
+Resultado: PASS.
+Comando: npm run test:unit
+Resultado: PASS; 17 suites, 64 tests, 0 fail.
+Evidencia: validation/v10/backend-build-final.log, validation/v10/backend-jest.log
+
+[3] FRONTEND
+Comandos: npm run lint; npx tsc --noEmit; npm run build
+Resultado: PASS en los tres comandos.
+Evidencia: validation/v10/frontend-lint.log, validation/v10/frontend-tsc.log, validation/v10/frontend-build.log
+
+[4] HEALTH Y CORS
+GET http://127.0.0.1:3002/health -> HTTP 200, DB ok.
+OPTIONS /api/v1/auth/login con Origin http://127.0.0.1:3003 -> HTTP 204, Access-Control-Allow-Origin explícito.
+Helmet observado: X-Content-Type-Options nosniff, X-Frame-Options SAMEORIGIN, HSTS y X-Request-Id.
+Evidencia: validation/v10/security/security-http-summary.txt, validation/v10/security/health-body.json
+
+[5] SMOKE CORE
+Comando: node scripts/smoke-core-v10.mjs
+Resultado: PASS; código 0.
+Observado: Caja efectivo esperado 120 y digital 50; Incidencia 201, AUDITOR 403, resolución 200 con REINGRESADO_ALMACEN; Entrega 201/200; duplicado 409; GRE/CPE 201 MOCK, hash 64 y contrato de numeración.
+Evidencia: validation/v10/smoke-core-v10-final.log
+
+[6] CONCURRENCIA
+Comando: CONCURRENCY_WIDTH=10 node scripts/test-concurrency-v10.js
+Resultado: PASS; código 0, failures=0.
+Apertura Caja 1/10, cierre 1/10, pago mismo ticket 1/10, Entrega duplicada 1/10. GRE 10/10 con 10 números únicos; CPE 10/10 con 10 números únicos. HTTP 5xx: 0.
+Evidencia: validation/v10/concurrency-v10-final.log
+
+[7] PLAYWRIGHT
+Comando: PLAYWRIGHT_BASE_URL=http://127.0.0.1:3003 npx playwright test --reporter=line
+Resultado: PASS; 4 passed (14.4s).
+Incluye login/drawer/logout, comprobantes/detracción, QR/popup y Caja Diaria.
+Evidencia: validation/v10/playwright-v10-final-clean.log
+Nota: No es E2E nacional integral Lima→Arequipa→Cusco.
+
+[8] INTEGRIDAD
+Comando: DB_HOST=... DB_NAME=grael_v10_db scripts/check-data-integrity-v10.sh
+Resultado: PASS; cero violaciones en los checks ejecutables.
+Evidencia: validation/v10/integrity-v10-final.log
+
+[9] PERFORMANCE
+Comando: API_BASE_URL=http://127.0.0.1:3002 GRAEL_PERF_USER=supervisor GRAEL_PERF_PASSWORD=super123 PERF_REQUESTS=30 node scripts/performance-v10.js
+Resultado: PASS; 30 solicitudes secuenciales por endpoint, errores 0.
+Evidencia: validation/v10/performance-v10-final.log
+Nota: no representa carga nacional ni dataset masivo.
+
+[10] BACKUP/RESTORE
+Comandos: pg_dump -Fc; pg_restore a grael_v10_restore_db; comparación de conteos.
+Resultado: PASS; tickets=6, bultos=24, pagos=4, movimientos_caja=2, entregas=3, series=2, migrations=26 en origen y restaurada.
+Dump temporal eliminado.
+Evidencia: validation/v10/backup-restore/
+
+[11] DEPENDENCIAS
+Comando: npm audit --json en backend y frontend.
+Resultado: backend 27 (3 low, 16 moderate, 8 high, 0 critical); frontend 8 (7 high, 1 critical). No se ejecutó audit fix force.
+Evidencia: validation/v10/security/npm-audit-backend.json, npm-audit-frontend.json
+
+[12] LIMITES DE ACEPTACION
+GRE/CPE permanece MOCK; SUNAT está BLOQUEADA EXTERNAMENTE; el viaje nacional integral y catálogos empresariales avanzados no tienen evidencia suficiente. El resultado debe permanecer NO PREPARADO PARA UAT OPERACIONAL INTEGRAL CONTROLADO.

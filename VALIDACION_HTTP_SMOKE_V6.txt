@@ -1,0 +1,29 @@
+GRAEL V6 — VALIDACION HTTP SMOKE
+
+Estado: **PASS PARCIAL** para el smoke ejecutado; el flujo físico completo de sesión/escaneo/cierre requiere datos LLEGADO preparados y queda separado.
+
+Comprobaciones heredadas V5 disponibles: health, login, me, rechazo sin token, RBAC, usuarios, reportes, auditoría, configuración y entregas mediante scripts existentes.
+
+Smoke V6 que debe ejecutarse con backend levantado:
+
+```bash
+curl -fsS http://localhost:3001/health
+curl -fsS -X POST http://localhost:3001/api/v1/auth/login -H 'Content-Type: application/json' -d '{"username":"supervisor","password":"super123"}'
+# Con token real:
+curl -fsS http://localhost:3001/api/v1/reportes/dashboard -H "Authorization: Bearer $TOKEN"
+curl -fsS http://localhost:3001/api/v1/incidencias -H "Authorization: Bearer $TOKEN"
+curl -fsS http://localhost:3001/api/v1/inventario/bultos -H "Authorization: Bearer $TOKEN"
+curl -fsS http://localhost:3001/api/v1/transbordo -H "Authorization: Bearer $TOKEN"
+# Flujo físico requiere IDs LLEGADO y almacén/ubicación reales:
+curl -fsS -X POST http://localhost:3001/api/v1/desembarque/sesiones ...
+curl -fsS -X POST http://localhost:3001/api/v1/desembarque/sesiones/$SESION/bultos ...
+curl -fsS -X POST http://localhost:3001/api/v1/desembarque/sesiones/$SESION/cerrar ...
+# GRE MOCK requiere ticket real:
+curl -fsS -X POST http://localhost:3001/api/v1/gre/emitir ...
+```
+
+## Ejecución observada en 2026-08-22
+
+Backend V6 aislado en `localhost:3002`, base PostgreSQL local y usuario `supervisor`. Resultado: `health=200`, reportes sin token `401`, `me=200`, Dashboard `200`, Incidencias `200`, Inventario `200`, Transbordo `200`, GRE MOCK `201` y `gre_documentos` persistido con conteo observado `1`. La emisión usó un ticket seed y observación `Smoke V6`; no se declara aquí aceptación legal SUNAT.
+
+El smoke no ejecutó la creación de una sesión física completa porque requiere seleccionar un manifiesto LLEGADO y almacén/ubicación reales sin alterar datos operativos; esa parte sigue pendiente de una prueba controlada con fixture dedicado.

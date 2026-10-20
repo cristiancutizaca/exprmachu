@@ -1,0 +1,71 @@
+GRAEL V8 — REGISTRO DE EJECUCIONES
+
+BASE
+- Worktree: /home/ubuntu/grael_work/GRAEL_V8_WORK
+- Base: ZIP oficial GRAEL_MANUS_V7_FINAL.zip
+- Migraciones TypeORM en fuente: 24
+- Migraciones aplicadas: 24
+
+BACKEND
+- npm run build: PASS
+- npm run test:unit: PASS
+- Test Suites: 15 passed, 15 total
+- Tests: 51 passed, 51 total
+- Snapshots: 0 total
+
+FRONTEND
+- npm run lint: PASS, sin errores ESLint
+- npx tsc --noEmit: PASS
+- npm run build: PASS, Next reportó 26 rutas
+- Páginas físicas page.tsx: 23
+
+HTTP SMOKE REAL
+- GET /health: 200
+- POST /api/v1/auth/login Supervisor: 200
+- GET /api/v1/auth/me: 200
+- GET /api/v1/tickets?page=1&limit=5: 200
+- GET /api/v1/reportes/dashboard: 200
+- GET /api/v1/configuracion/all: 200
+- GET /api/v1/comprobantes?page=1&limit=5: 200
+- POST /api/v1/auth/login Operador: 200
+- PATCH /api/v1/tickets/:id/estado por Operador: 403
+- GET /api/v1/bultos?page=1&limit=1: 200
+- PATCH /api/v1/bultos/:id/estado por Operador: 403
+
+CONCURRENCIA REAL
+- Fixture creado mediante API: ticket 301-0631203, total 99.12, un bulto.
+- 2 x pago simultáneo de 80: 1 x HTTP 200; 1 x HTTP 400 PAYMENT_EXCEEDS_BALANCE.
+- 20 x pago simultáneo de 10 sobre saldo restante: 1 x HTTP 200; 19 x HTTP 400 de negocio.
+- Se corrigió un primer 500 de lock por join eager nullable usando query builder directo de Ticket.
+
+PLAYWRIGHT E2E
+- Tests ejecutados: 3
+- Resultado: 3 passed, 0 failed
+- Casos: login/drawer/logout; navegación Comprobantes/Detracción; Búsqueda QR real con endpoint QR 200 y popup.
+
+INTEGRIDAD
+- Checks ejecutados: 9
+- Cada check reportó violations=0
+- Resultado global: PASS de integridad de solo lectura.
+
+PERFORMANCE LOCAL
+- 30 requests secuenciales por endpoint, errors=0 en todos.
+- health: p50 1 ms, p95 3 ms, max 5 ms.
+- dashboard: p50 2 ms, p95 3 ms, max 13 ms.
+- inventario: p50 7 ms, p95 10 ms, max 16 ms.
+- transbordo: p50 2 ms, p95 3 ms, max 4 ms.
+
+BACKUP/RESTORE
+- Dump custom real de grael_db: PASS.
+- Restore aislado a grael_restore_v8: PASS.
+- Conteos restaurados: tickets=8, bultos=26, pagos=8, migrations=24.
+
+DEPENDENCIAS
+- npm audit backend: 3 low, 16 moderate, 8 high, 0 critical.
+- npm audit frontend: 0 low, 0 moderate, 7 high, 1 critical.
+- No se ejecutó npm audit fix --force.
+
+VEREDICTO
+- PARCIAL: apto para UAT controlado acotado.
+- No preparado para producción nacional.
+- GRE/CPE: MOCK; SUNAT real bloqueado externamente.

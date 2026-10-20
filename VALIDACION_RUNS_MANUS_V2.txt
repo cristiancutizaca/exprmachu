@@ -1,0 +1,124 @@
+
+=== FRONTEND LINT ===
+
+> grael-frontend@1.0.0 lint
+> next lint
+
+✔ No ESLint warnings or errors
+EXIT=0
+
+=== FRONTEND TSC ===
+EXIT=0
+
+=== FRONTEND BUILD ===
+
+> grael-frontend@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.3
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/21) ...
+   Generating static pages (5/21) 
+   Generating static pages (10/21) 
+   Generating static pages (15/21) 
+ ✓ Generating static pages (21/21)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    137 B          87.2 kB
+├ ○ /_not-found                          871 B          87.9 kB
+├ ○ /bolsa                               5.06 kB         105 kB
+├ ○ /busqueda                            8.98 kB         130 kB
+├ ○ /busqueda-qr                         4.75 kB         105 kB
+├ ○ /caja-diaria                         7.58 kB         129 kB
+├ ○ /comprobantes                        4.68 kB         105 kB
+├ ○ /configuracion                       5.71 kB         109 kB
+├ ○ /dashboard                           5.69 kB         104 kB
+├ ○ /desembarque                         5.93 kB         109 kB
+├ ○ /detraccion                          4.7 kB          105 kB
+├ ○ /inventario                          3.15 kB         103 kB
+├ ○ /login                               3.93 kB         147 kB
+├ ○ /manifiesto                          6.49 kB         107 kB
+├ ○ /pago-sin-comprobante                4.69 kB         129 kB
+├ ○ /recepcion                           15.6 kB         162 kB
+├ ○ /reportes                            7.04 kB         107 kB
+├ ○ /tracking                            4.21 kB         126 kB
+└ ○ /transbordo                          6.79 kB         128 kB
++ First Load JS shared by all            87 kB
+  ├ chunks/23-91a6a7ab554044ce.js        31.5 kB
+  ├ chunks/fd9d1056-0452428ab487ffa7.js  53.6 kB
+  └ other shared chunks (total)          1.95 kB
+
+
+○  (Static)  prerendered as static content
+
+EXIT=0
+
+=== BACKEND BUILD ===
+
+> grael-backend@1.0.0 build
+> nest build
+
+EXIT=0
+
+=== UNIT TESTS ===
+
+> grael-backend@1.0.0 test:unit
+> jest --runInBand src/**/*.spec.ts
+
+PASS src/pagos/pagos.service.spec.ts
+PASS src/bultos/bultos.service.spec.ts
+PASS src/tickets/ticket-workflow.service.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        1.514 s, estimated 2 s
+Ran all test suites matching src/bultos/bultos.service.spec.ts|src/pagos/pagos.service.spec.ts|src/tickets/ticket-workflow.service.spec.ts.
+EXIT=0
+
+=== TYPEORM MIGRATIONS (EXPECTED EXTERNAL DEPENDENCY CHECK) ===
+
+> grael-backend@1.0.0 migration:run
+> npm run typeorm -- migration:run
+
+
+> grael-backend@1.0.0 typeorm
+> ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js --dataSource=src/database/data-source.ts migration:run
+
+Error during migration run:
+AggregateError
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7) {
+  code: 'ECONNREFUSED',
+  [errors]: [
+    Error: connect ECONNREFUSED ::1:5432
+        at createConnectionError (node:net:1675:14)
+        at afterConnectMultiple (node:net:1705:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 5432
+    },
+    Error: connect ECONNREFUSED 127.0.0.1:5432
+        at createConnectionError (node:net:1675:14)
+        at afterConnectMultiple (node:net:1705:16) {
+      errno: -111,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 5432
+    }
+  ]
+}
+EXIT=1
+
+=== ARTIFACT ===
+Wed Aug 19 23:09:52 UTC 2026

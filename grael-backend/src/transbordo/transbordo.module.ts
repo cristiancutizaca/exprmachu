@@ -1,0 +1,15 @@
+import { Module } from '@nestjs/common'
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { TransbordoController } from './transbordo.controller'
+import { TransbordoService }    from './transbordo.service'
+import { Transbordo }  from '../database/entities/operaciones.entity'
+import { Destino }     from '../database/entities/destino.entity'
+import { Ticket }      from '../database/entities/ticket.entity'
+import { Usuario }     from '../database/entities/usuario.entity'
+import { Bulto }       from '../database/entities/bulto.entity'
+import { Vehiculo, Conductor } from '../database/entities/flota.entity'
+import { Sede }        from '../database/entities/sede.entity'
+import { TrackingEvento } from '../database/entities/tracking-evento.entity'
+import { Manifiesto }  from '../database/entities/operaciones.entity'
+@Module({ imports:[TypeOrmModule.forFeature([Transbordo, Destino, Ticket, Usuario, Bulto, Vehiculo, Conductor, Sede, TrackingEvento, Manifiesto])], controllers:[TransbordoController], providers:[TransbordoService] })
+export class TransbordoModule {}

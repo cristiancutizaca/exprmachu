@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Custom scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #1a2332; background: #f0f2f5;
+  overflow-x: hidden;
+}
+:focus-visible { outline: 2px solid #3b97c8; outline-offset: 2px; border-radius: 4px; }
+::selection { background: rgba(59, 151, 200, 0.18); }
+
+/* ─── Layout transitions ───────────────────────────────────────────────────── */
+.drawer-transition  { transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.18s ease-out; overflow: hidden; }
+.content-transition { transition: none; }
+
+/* ─── Shadows ──────────────────────────────────────────────────────────────── */
+.shadow-topbar { box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+.shadow-card   { box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); }
+
+/* ─── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fadeIn    { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
+@keyframes scaleIn   { from { opacity:0; transform:scale(0.95) }     to { opacity:1; transform:scale(1) } }
+@keyframes slideRight{ from { opacity:0; transform:translateX(16px) }to { opacity:1; transform:none } }
+@keyframes shimmer   { from { background-position:200% 0 } to { background-position:-200% 0 } }
+
+.animate-in              { animation: fadeIn 0.2s ease-out; }
+.fade-in                 { animation: fadeIn 0.3s ease-out; }
+.animate-scale-in        { animation: scaleIn 0.15s ease-out; }
+.slide-in-from-bottom-2  { animation: fadeIn 0.25s ease-out; }
+
+/* Skeleton shimmer */
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 400% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Print ────────────────────────────────────────────────────────────────── */
+@media print {
+  header, aside, .no-print, button { display: none !important; }
+  main   { margin: 0 !important; padding: 0 !important; }
+  .print-break { page-break-before: always; }
+  * { font-size: 11px !important; }
+  table  { border-collapse: collapse !important; width: 100% !important; }
+  th, td { border: 1px solid #ccc !important; padding: 4px 8px !important; }
+  th     { background: #f0f0f0 !important; font-weight: bold !important; }
+}
+
+/* ─── Inputs ───────────────────────────────────────────────────────────────── */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+input[type=number] { -moz-appearance: textfield; }
+input, select, textarea { font-family: inherit; }
+
+/* ─── Tooltips data-attr ───────────────────────────────────────────────────── */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  background: #1c3a5c; color: #fff; font-size: 11px; padding: 3px 8px;
+  border-radius: 4px; white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: opacity 0.15s; z-index: 100;
+}
+[data-tip]:hover::after { opacity: 1; }
+
+/* ─── GRAEL brand colors como CSS vars + clases ─────────────────────────────  */
+:root {
+  --navy:     #1c3a5c;
+  --navy-600: #162e47;
+  --sky:      #3b97c8;
+  --sky-dark: #2d7fad;
+  --sky-light:#7ec8e8;
+  --subbar:   #1e4d87;
+}
+
+.bg-navy-500   { background-color: var(--navy); }
+.bg-navy-600   { background-color: var(--navy-600); }
+.text-navy-500 { color: var(--navy); }
+.text-navy-400 { color: #3a5f85; }
+.bg-navy-50    { background-color: #eef2f7; }
+.bg-navy-100   { background-color: #d5dfe8; }
+.border-navy-500{ border-color: var(--navy); }
+
+.bg-sky-brand      { background-color: var(--sky); }
+.hover\:bg-sky-dark:hover { background-color: var(--sky-dark); }
+.text-sky-brand    { color: var(--sky); }
+.text-sky-light    { color: var(--sky-light); }
+.border-sky-brand  { border-color: var(--sky); }
+.focus\:ring-sky-brand\/20:focus { --tw-ring-color: rgba(59,151,200,0.2); }
+.focus\:border-sky-brand:focus   { border-color: var(--sky); }
+.ring-sky-brand    { --tw-ring-color: var(--sky); }
+.bg-sky-50         { background-color: #f0f8fd; }
+
+.bg-subbar        { background-color: var(--subbar); }
+.border-l-subbar  { border-left-color: var(--subbar); }

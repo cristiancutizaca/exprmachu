@@ -1,0 +1,22 @@
+GRAEL V3 HTTP SMOKE EVIDENCE
+Fecha: 2026-08-20
+Backend: http://127.0.0.1:3001
+Base: PostgreSQL 16 real, migrada y sembrada
+
+PASS GET /health -> HTTP 200, status=ok.
+PASS POST /api/v1/auth/login -> HTTP 200, JWT emitido con rol ADMIN_SEDE y sedeId.
+PASS GET /api/v1/auth/me -> HTTP 200, sedeId presente y password no expuesto.
+PASS GET /api/v1/tickets -> HTTP 200, tickets sembrados listados.
+PASS POST /api/v1/tickets -> HTTP 201, ticket 301-0631202 creado; backend calculó subtotal 68.75, IGV 12.38 y total 81.13.
+PASS Recepción -> bulto 301-0631202-001 y tracking inicial creados transaccionalmente.
+PASS POST /api/v1/pagos/caja/abrir -> HTTP 201, saldo inicial 100.00.
+PASS PATCH /api/v1/tickets/:id/pagar -> HTTP 200, pago parcial 20.00; SQL confirmó monto_pagado=20.00, pagos=1, movimientos_caja=1.
+PASS POST /api/v1/gre/emitir (CPE) -> HTTP 201, ACEPTADO_MOCK, XML local y comprobante B001-00000001 persistido.
+PASS Despacho incompleto -> HTTP 400, code=MANIFEST_INCOMPLETE.
+PASS POST /api/v1/inventario/movimientos -> HTTP 201, bulto pasó a EN_ALMACEN con almacén/ubicación.
+PASS POST /api/v1/manifiesto/:id/carga/bulto -> HTTP 201, bulto pasó a CARGADO.
+PASS POST /api/v1/manifiesto/:id/despachar -> HTTP 201, manifiesto EN_RUTA, ticket/bulto EN_TRANSITO.
+
+Nota: un intento inicial con POST /api/v1/tickets/:id/pagar devolvió 404 porque el contrato correcto es PATCH; el retry con PATCH pasó HTTP 200. El cliente frontend usa PATCH.
+
+No se ejecutó SUNAT real. Requiere credenciales, certificado, firma, homologación, CDR y endpoint externo.
