@@ -110,7 +110,7 @@ export const trackingApi = {
 export const incidenciasApi = {
   listar: (params?: { sedeId?: string; ticketId?: string; bultoId?: string; estado?: string; tipo?: string }) => api.get('/incidencias', { params }),
   crear: (data: any) => api.post('/incidencias', data),
-  resolver: (id: string, data: { estado: string; resolucion?: string }) => api.patch(`/incidencias/${id}/resolver`, data),
+  resolver: (id: string, data: { estado: 'RESUELTA' | 'CERRADA'; disposicion: string; resolucion?: string }) => api.patch(`/incidencias/${id}/resolver`, data),
 }
 
 export const inventarioApi = {

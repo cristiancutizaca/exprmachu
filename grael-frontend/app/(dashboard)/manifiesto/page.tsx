@@ -1,4 +1,5 @@
 'use client'
+import { hoyPeru } from '@/lib/peru-time'
 import { useCallback, useEffect, useState, useMemo } from 'react'
 import {
   ClipboardList, Plus, Search, ChevronRight, Truck,
@@ -75,7 +76,7 @@ const AVANZAR: Record<EstadoManiesto,{next?:EstadoManiesto;label?:string;color?:
 function ModalCrear({ onCrear, onClose, destinos, sedeOrigenId, vehiculos, conductores, isDemoMode }: { onCrear: (data: any) => Promise<void>; onClose: () => void; destinos: Array<{ id: string; nombre?: string; codigo?: string }>; sedeOrigenId?: string; vehiculos: FlotaOption[]; conductores: FlotaOption[]; isDemoMode: boolean }) {
   const [form, setForm] = useState({
     origen:'PIURA', destino:'CUSCO', programacion:'PIU-CUS-0600',
-    chofer:'', placa:'', vehiculoId:'', conductorId:'', fecha: new Date().toISOString().split('T')[0]
+    chofer:'', placa:'', vehiculoId:'', conductorId:'', fecha: hoyPeru()
   })
   const DESTS = ['CUSCO','LIMA','AREQUIPA','PIURA','PUNO','QUILLABANBA']
   const PROGS = [

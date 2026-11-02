@@ -1,6 +1,6 @@
-# GRAEL — V10
+# GRAEL — V10 (mantenimiento y correcciones)
 
-GRAEL es un sistema de gestión logística multisede para recepción, custodia, almacén, despacho, transbordo, desembarque, entrega, caja y documentos electrónicos. Esta versión evoluciona directamente desde `GRAEL_MANUS_V9_FINAL.zip`; no crea un proyecto nuevo, no cambia el stack y no introduce Redis, Kafka, RabbitMQ, Kubernetes, microservicios ni borrado histórico.
+GRAEL es un sistema de gestión logística multisede para recepción, custodia, almacén, despacho, transbordo, desembarque, entrega, caja y documentos electrónicos. Se mantiene el monolito existente (Next.js, NestJS y PostgreSQL). Se depuraron documentos históricos redundantes del árbol activo, pero **las migraciones y datos históricos deben conservarse**.
 
 ## Estado de V10
 
@@ -82,3 +82,13 @@ GRE y CPE utilizan series persistidas por sede y correlativos protegidos por loc
 ## Entrega y límites
 
 El paquete final debe contener código fuente, migraciones, seeds, pruebas, scripts, lockfiles y evidencia textual segura. Se excluyen `.git`, `node_modules`, `dist`, `.next`, coverage, `.env`, secretos, certificados, dumps, logs temporales y reportes Playwright pesados. La aceptación se mantiene deliberadamente conservadora: se validaron escenarios locales y races concretas, pero no un viaje nacional integral Lima→Arequipa→Cusco ni homologación SUNAT.
+
+## Correcciones de mantenimiento (noviembre 2026)
+
+- La resolución de incidencias requiere **disposición física** y observación; disponible para responsables autorizados.
+- Caja Diaria, métricas de hoy y fechas por defecto operan con el día civil de **America/Lima**, no con UTC ni con el huso del servidor.
+- Entrada y navegación en frontend según rol, con validación de ruta; permisos reales siguen controlados por NestJS.
+- Acceso DEMO desactivado por defecto. Solo habilitar localmente con `NEXT_PUBLIC_ENABLE_DEMO=true`. **No usar en producción.**
+- Depuración de documentación V2–V9 de la raíz y scripts históricos no utilizados. Las migraciones se mantienen para upgrades.
+
+> **Advertencia:** estas correcciones no implican que el sistema esté listo para producción. SUNAT sigue en modo MOCK; requieren pruebas de integración con PostgreSQL, E2E y aceptación operativa.

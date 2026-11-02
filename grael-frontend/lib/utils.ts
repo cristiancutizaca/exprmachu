@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge }              from 'tailwind-merge'
+import { hoyPeru } from './peru-time'
 
 // ─── className helper ─────────────────────────────────────────────────────────
 export function cn(...inputs: ClassValue[]) {
@@ -64,7 +65,7 @@ export function exportToCSV(data: Record<string, any>[], filename: string) {
   const url     = URL.createObjectURL(blob)
   const link    = document.createElement('a')
   link.href     = url
-  link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`
+  link.download = `${filename}_${hoyPeru()}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }

@@ -1,4 +1,5 @@
 'use client'
+import { hoyPeru } from '@/lib/peru-time'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Banknote, Calculator, CreditCard, Download, Lock, Printer, Search, Smartphone, Wallet } from 'lucide-react'
@@ -38,7 +39,7 @@ export default function CajaDiariaPage() {
   const token = useAuthStore(state => state.token)
   const user = useAuthStore(state => state.user) as any
   const isDemoMode = !token || token.startsWith('demo-')
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
+  const [fecha, setFecha] = useState(hoyPeru())
   const [pagos, setPagos] = useState<PagoCaja[]>(isDemoMode ? PAGOS_HOY : [])
   const [caja, setCaja] = useState<CajaReal | null>(null)
   const [resumen, setResumen] = useState<Record<string, number>>({})

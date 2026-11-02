@@ -1,3 +1,4 @@
+import { hoyPeru, limitesDiaPeru } from '../common/peru-time'
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import * as QRCode from 'qrcode'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -341,8 +342,8 @@ export class TicketsService {
   }
 
   async getEstadisticas(user?: any) {
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
-    const manana = new Date(hoy); manana.setDate(manana.getDate() + 1)
+    const { inicio: hoy, fin } = limitesDiaPeru(hoyPeru())
+    const manana = new Date(fin.getTime() + 1)
     const sedeId = effectiveSedeId(user)
     const ticketBase = this.ticketRepo.createQueryBuilder('t')
     if (sedeId) ticketBase.andWhere('t.sede_recepcion_id = :statsSedeId', { statsSedeId: sedeId })
@@ -350,13 +351,13 @@ export class TicketsService {
     if (sedeId) paymentBase.andWhere('p.sede_id = :statsSedeId', { statsSedeId: sedeId })
 
     const [ticketsHoy, pendientesCobro, enTransito, desembarque] = await Promise.all([
-      ticketBase.clone().andWhere('t.created_at BETWEEN :hoy AND :manana', { hoy, manana }).getCount(),
+      ticketBase.clone().andWhere('t.created_at >= :hoy AND t.created_at < :manana', { hoy, manana }).getCount(),
       ticketBase.clone().andWhere('t.pagado = false AND t.anulado = false').getCount(),
       ticketBase.clone().andWhere('t.estado = :estado', { estado: EstadoTicket.EN_TRANSITO }).getCount(),
       ticketBase.clone().andWhere('t.estado = :desembarque', { desembarque: EstadoTicket.DESEMBARQUE_EN_DESTINO }).getCount(),
     ])
     const [cobradoHoy, montoPendiente] = await Promise.all([
-      paymentBase.clone().select('COALESCE(SUM(p.monto),0)', 'total').andWhere('p.created_at BETWEEN :hoy AND :manana', { hoy, manana }).getRawOne(),
+      paymentBase.clone().select('COALESCE(SUM(p.monto),0)', 'total').andWhere('p.created_at >= :hoy AND p.created_at < :manana', { hoy, manana }).getRawOne(),
       ticketBase.clone().select('COALESCE(SUM(t.total),0)', 'total').andWhere('t.pagado = false AND t.anulado = false').getRawOne(),
     ])
     return { ticketsHoy, cobradoHoy: parseFloat(cobradoHoy?.total || '0'), pendientesCobro, montoPendiente: parseFloat(montoPendiente?.total || '0'), enTransito, desembarque }

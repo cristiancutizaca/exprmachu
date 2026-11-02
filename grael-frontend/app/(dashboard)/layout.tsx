@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore, useUIStore } from '@/store'
 import Topbar from '@/components/layout/Topbar'
-import Sidebar from '@/components/layout/Sidebar'
+import Sidebar, { canAccessRoute, defaultRouteForRole } from '@/components/layout/Sidebar'
 import Subbar from '@/components/layout/Subbar'
 import { ConfirmModal, KeyboardShortcuts } from '@/components/layout/GlobalModals'
 import { clsx } from 'clsx'
@@ -14,6 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const isAuthenticated = useAuthStore(s => s.isAuthenticated)
   const token = useAuthStore(s => s.token)
+  const user = useAuthStore(s => s.user)
   const hydrated = useAuthStore(s => s.hydrated)
   const setDrawerOpen = useUIStore(s => s.setDrawerOpen)
   const [authChecked, setAuthChecked] = useState(false)
@@ -30,6 +31,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return
     }
     if (token.startsWith('demo-')) {
+      if (process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') {
+        useAuthStore.getState().logout()
+        setAuthChecked(false)
+        router.replace('/login')
+        return
+      }
       setAuthChecked(true)
       return
     }
@@ -57,7 +64,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [setDrawerOpen])
 
-  if (!hydrated || !isAuthenticated || !authChecked) return null
+  useEffect(() => {
+    if (hydrated && isAuthenticated && authChecked && !canAccessRoute(user?.rol, pathname)) {
+      router.replace(defaultRouteForRole(user?.rol))
+    }
+  }, [hydrated, isAuthenticated, authChecked, user?.rol, pathname, router])
+
+  if (!hydrated || !isAuthenticated || !authChecked || !canAccessRoute(user?.rol, pathname)) return null
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#f0f2f5]">

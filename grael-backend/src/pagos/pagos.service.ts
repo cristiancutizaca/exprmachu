@@ -7,6 +7,7 @@ import { Sede } from '../database/entities/sede.entity'
 import { RolUsuario, Usuario } from '../database/entities/usuario.entity'
 import { AuditLog } from '../database/entities/audit-log.entity'
 import { assertSedeAccess, isGlobalRole } from '../auth/sede-scope'
+import { hoyPeru, limitesDiaPeru } from '../common/peru-time'
 
 @Injectable()
 export class PagosService {
@@ -89,10 +90,8 @@ export class PagosService {
   }
 
   async getDelDia(query: { fecha?: string; sedeId?: string; page?: number; limit?: number } = {}, user?: any) {
-    const dia = query.fecha ? new Date(query.fecha) : new Date()
-    dia.setHours(0, 0, 0, 0)
-    const fin = new Date(dia)
-    fin.setHours(23, 59, 59, 999)
+    const fecha = query.fecha || hoyPeru()
+    const { inicio: dia, fin } = limitesDiaPeru(fecha)
     if (query.sedeId && !isGlobalRole(user)) assertSedeAccess(user, query.sedeId, 'consultar caja diaria')
     const scopeSedeId = isGlobalRole(user) ? (query.sedeId || undefined) : user?.sedeId
     const page = Math.max(1, Number(query.page) || 1)
@@ -103,7 +102,7 @@ export class PagosService {
     const allForSummary = await this.repo.find({ where, select: ['monto', 'metodoPago'] })
     const total = allForSummary.reduce((sum, payment) => sum + Number(payment.monto || 0), 0)
     const porMetodo = allForSummary.reduce((acc, payment) => { acc[payment.metodoPago] = (acc[payment.metodoPago] || 0) + Number(payment.monto || 0); return acc }, {} as Record<string, number>)
-    return { pagos: pagos.map(payment => ({ ...payment, usuario: this.safeUser(payment.usuario) })), total: Number(total.toFixed(2)), porMetodo, fecha: dia.toISOString().split('T')[0], cantidadCobros: totalRegistros, page, limit, totalPages: Math.ceil(totalRegistros / limit), sedeId: scopeSedeId || null }
+    return { pagos: pagos.map(payment => ({ ...payment, usuario: this.safeUser(payment.usuario) })), total: Number(total.toFixed(2)), porMetodo, fecha, cantidadCobros: totalRegistros, page, limit, totalPages: Math.ceil(totalRegistros / limit), sedeId: scopeSedeId || null }
   }
 
   async abrirCaja(dto: { sedeId: string; saldoInicial?: number; observacion?: string }, usuarioId: string, user?: any) {

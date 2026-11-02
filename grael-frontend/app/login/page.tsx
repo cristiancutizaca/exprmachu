@@ -8,6 +8,7 @@ import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store'
 import { authApi } from '@/lib/api'
+import { defaultRouteForRole } from '@/components/layout/Sidebar'
 
 const schema = z.object({
   username: z.string().min(1, 'Ingrese su usuario'),
@@ -32,7 +33,7 @@ export default function LoginPage() {
       const res = await authApi.login(data.username, data.password)
       login(res.data.user, res.data.access_token)
       toast.success('Bienvenido al sistema GRAEL')
-      router.push('/recepcion')
+      router.replace(defaultRouteForRole(res.data.user?.rol))
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Credenciales incorrectas'
       toast.error(msg)
@@ -43,12 +44,13 @@ export default function LoginPage() {
 
   // Demo: login sin backend
   const demoLogin = () => {
+    if (process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') return
     login({
       id: '1', nombre: 'JESUS SAMUEL', apellido: 'CUTISACA BUSTAMANTE',
       username: 'jesus.cutisaca', sede: 'CUSCO', rol: 'ADMIN_SEDE',
     }, 'demo-token-123')
     toast.success('Acceso demo activado')
-    router.push('/recepcion')
+    router.replace('/dashboard')
   }
 
   return (
@@ -125,19 +127,19 @@ export default function LoginPage() {
               {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
 
-            {/* Demo button */}
-            <button
+            {/* Demo explícita y deshabilitada por defecto. Nunca se habilita en producción. */}
+            {process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && <button
               type="button"
               onClick={demoLogin}
               className="w-full py-2 text-xs text-gray-400 hover:text-navy-500 transition-colors
                          border border-dashed border-gray-200 rounded-lg hover:border-navy-300"
             >
               Acceso Demo (sin backend)
-            </button>
+            </button>}
           </form>
 
           <div className="px-8 pb-4 text-center text-xs text-gray-400">
-            © 2026 grael.pe — v1.0.0
+            © 2026 GRAEL · V10
           </div>
         </div>
       </div>

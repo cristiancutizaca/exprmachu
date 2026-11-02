@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { DataSource } from 'typeorm'
 import { assertSedeAccess, effectiveSedeId } from '../auth/sede-scope'
+import { hoyPeru, limitesDiaPeru } from '../common/peru-time'
 
 @Injectable()
 export class ReportesService {
@@ -50,7 +51,7 @@ export class ReportesService {
   }
 
   async dashboardKpis(user?: any, sedeId?: string) {
-    const scope = this.scopedParams(user, sedeId); const now = new Date(); const hoy = new Date(now); hoy.setHours(0, 0, 0, 0); const manana = new Date(hoy); manana.setDate(manana.getDate() + 1)
+    const scope = this.scopedParams(user, sedeId); const { inicio: hoy, fin } = limitesDiaPeru(hoyPeru()); const manana = new Date(fin.getTime() + 1)
     const dateParams = scope.sedeId ? [hoy, manana, scope.sedeId] : [hoy, manana]
     const plainParams = scope.sedeId ? [scope.sedeId] : []
     const ticketDateScope = scope.receptionTicket(3)

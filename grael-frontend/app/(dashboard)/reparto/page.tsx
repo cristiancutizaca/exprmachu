@@ -1,4 +1,5 @@
 'use client'
+import { hoyPeru } from '@/lib/peru-time'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -8,8 +9,8 @@ import { useAuthStore } from '@/store'
 import { Button, Card, PageHeader, Badge, EmptyState } from '@/components/ui'
 
 const DEMO_SHEETS = [
-  { id: 'demo-planilla-1', fecha: new Date().toISOString().slice(0, 10), zona: 'Lima Centro', estado: 'EN_RUTA', sede: { nombre: 'Lima Centro' }, vehiculo: { placa: 'ABC-123' }, repartidor: { username: 'repartidor.demo' } },
-  { id: 'demo-planilla-2', fecha: new Date().toISOString().slice(0, 10), zona: 'Callao', estado: 'ASIGNADO', sede: { nombre: 'Callao' }, vehiculo: { placa: 'DEF-456' }, repartidor: { username: 'ruta.demo' } },
+  { id: 'demo-planilla-1', fecha: hoyPeru(), zona: 'Lima Centro', estado: 'EN_RUTA', sede: { nombre: 'Lima Centro' }, vehiculo: { placa: 'ABC-123' }, repartidor: { username: 'repartidor.demo' } },
+  { id: 'demo-planilla-2', fecha: hoyPeru(), zona: 'Callao', estado: 'ASIGNADO', sede: { nombre: 'Callao' }, vehiculo: { placa: 'DEF-456' }, repartidor: { username: 'ruta.demo' } },
 ]
 
 const statusClass: Record<string, string> = {

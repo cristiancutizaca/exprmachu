@@ -47,6 +47,23 @@ const NAV: NavGroup[] = [
   ]},
 ]
 
+/** La navegación del cliente mejora UX; los guards del backend siguen siendo autoridad. */
+export function canAccessRoute(rol: string | undefined, pathname: string): boolean {
+  if (!rol) return false
+  const match = NAV.flatMap(group => group.items).find(item => pathname === item.href || pathname.startsWith(`${item.href}/`))
+  return Boolean(match && (rol === 'SUPERADMIN' || match.allowedRoles.includes(rol as Role)))
+}
+
+export function defaultRouteForRole(rol: string | undefined): string {
+  if (!rol) return '/login'
+  if (rol === 'CAJERO') return '/caja-diaria'
+  if (rol === 'OPERADOR') return '/recepcion'
+  if (rol === 'REPARTIDOR') return '/reparto'
+  if (rol === 'ALMACEN') return '/inventario'
+  if (rol === 'AUDITOR') return '/auditoria'
+  return '/dashboard'
+}
+
 function getBadge(href: string, isDemoMode: boolean) {
   if (!isDemoMode) return null
   if (href==='/busqueda')    { const n=TICKETS_DB.filter(t=>!t.pagado&&!t.anulado).length;     return n>0?{count:n,cls:'bg-amber-100 text-amber-700'}:null }
@@ -107,10 +124,9 @@ export default function Sidebar({ currentPath }: { currentPath: string }) {
             </div>
           ))}
           <div className="mx-4 mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-            <p className="text-[10px] font-bold text-navy-500">GRAEL Sistema V7</p>
+            <p className="text-[10px] font-bold text-navy-500">GRAEL Sistema V10</p>
             <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block"/>
-              Conectado · {new Date().toLocaleDateString('es-PE')}
+              {isDemoMode ? 'MODO DEMO · Sin backend' : `Sesión ${user?.username || ''} · ${new Date().toLocaleDateString('es-PE')}`}
             </p>
           </div>
         </div>
