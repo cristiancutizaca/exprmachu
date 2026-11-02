@@ -1,4 +1,5 @@
 'use client'
+import { BrandHero } from '@/components/brand/BrandIdentity'
 import { useCallback, useEffect, useState } from 'react'
 import {
   BarChart2, TrendingUp, Download, RefreshCw,
@@ -212,6 +213,7 @@ export default function ReportesPage() {
 
   return (
     <div className="pb-8 space-y-5">
+      <div className="mb-5"><BrandHero compact kicker="Análisis operativo" title="Reportes y estadísticas" description="Consulta indicadores de operación, ingresos y actividad por sede para tomar decisiones informadas." /></div>
       <PageHeader
         title="Reportes y Estadísticas"
         subtitle={isDemoMode ? 'Modo Demo — indicadores calculados localmente' : 'Sesión real — indicadores provenientes del API'}

@@ -73,7 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!hydrated || !isAuthenticated || !authChecked || !canAccessRoute(user?.rol, pathname)) return null
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#f0f2f5]">
+    <div className="flex flex-col h-screen overflow-hidden bg-gradient-to-b from-[#f7fbff] via-[#eef4fb] to-[#e8f0f8]">
       <Topbar/>
       <Subbar/>
       <KeyboardShortcuts/>

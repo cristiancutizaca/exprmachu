@@ -3,8 +3,8 @@ import { Toaster } from 'react-hot-toast'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title:       'GRAEL - Sistema de Gestión Logística',
-  description: 'Administración de sede GRAEL',
+  title:       'Expreso Machupicchu - Plataforma de Gestión Logística',
+  description: 'Administración operativa de Expreso Machupicchu',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           position="bottom-right"
           toastOptions={{
             style: {
-              background: '#1c3a5c',
+              background: '#0e3257',
               color: '#fff',
               fontSize: '13px',
               borderRadius: '6px',

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// GRAEL UI Component Library
+// Expreso Machupicchu · Biblioteca visual compartida
 // ─────────────────────────────────────────────────────────────────────────────
 import { clsx } from 'clsx'
 import { Loader2, ChevronLeft, ChevronRight, X, AlertCircle, Info, CheckCircle, AlertTriangle } from 'lucide-react'
@@ -12,13 +12,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: BtnVariant; size?: BtnSize; loading?: boolean; icon?: ReactNode; children: ReactNode
 }
 const BVARS: Record<BtnVariant,string> = {
-  primary:   'bg-sky-brand text-white hover:bg-sky-dark active:scale-[0.98]',
+  primary:   'bg-gold-brand text-navy-500 hover:bg-gold-dark active:scale-[0.98] shadow-sm',
   secondary: 'bg-gray-600 text-white hover:bg-gray-700 active:scale-[0.98]',
   success:   'bg-green-600 text-white hover:bg-green-700 active:scale-[0.98]',
   danger:    'bg-red-600 text-white hover:bg-red-700 active:scale-[0.98]',
-  outline:   'bg-white text-sky-brand border border-sky-brand hover:bg-blue-50 active:scale-[0.98]',
+  outline:   'bg-white text-navy-500 border border-gold-brand hover:bg-[#fff8e6] active:scale-[0.98]',
   ghost:     'bg-transparent text-gray-600 hover:bg-gray-100',
-  dark:      'bg-navy-500 text-white hover:bg-navy-600 active:scale-[0.98]',
+  dark:      'bg-navy-500 text-white hover:bg-navy-600 active:scale-[0.98] shadow-sm',
 }
 const BSIZES: Record<BtnSize,string> = {
   xs: 'px-2.5 py-1 text-[11px] gap-1',
@@ -29,7 +29,7 @@ const BSIZES: Record<BtnSize,string> = {
 export function Button({ variant='primary', size='sm', loading, icon, children, className, disabled, ...props }: ButtonProps) {
   return (
     <button disabled={disabled||loading}
-      className={clsx('inline-flex items-center justify-center rounded font-medium transition-all',
+      className={clsx('inline-flex items-center justify-center rounded-lg font-semibold transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#f4b000]',
         'disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap select-none',
         BVARS[variant], BSIZES[size], className)}
       {...props}>
@@ -108,7 +108,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> { padding?: boolean |
 export function Card({ children, className, padding = true, hover, ...props }: CardProps) {
   return (
     <div className={clsx(
-      'bg-white rounded-md shadow-card border border-gray-100',
+      'bg-white rounded-2xl shadow-card border border-[#dce6f0]',
       typeof padding === 'string' ? padding : padding ? 'p-4' : '',
       hover && 'hover:shadow-md transition-shadow cursor-pointer',
       className)} {...props}>
@@ -199,7 +199,7 @@ export function Tabs({ items, active, onChange, variant='pills' }: TabsProps) {
             className={clsx(
               'flex items-center gap-2 px-4 py-2.5 text-[12px] font-medium transition-all border-b-2 -mb-px',
               active === t.id
-                ? 'border-sky-brand text-sky-brand'
+                ? 'border-gold-brand text-navy-500'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             )}>
             {t.icon}{t.label}
@@ -219,7 +219,7 @@ export function Tabs({ items, active, onChange, variant='pills' }: TabsProps) {
         <button key={t.id} onClick={() => onChange(t.id)}
           className={clsx(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all',
-            active === t.id ? 'bg-white text-navy-500 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            active === t.id ? 'bg-white text-navy-500 shadow-sm ring-1 ring-[#e8d6a2]' : 'text-gray-500 hover:text-gray-700'
           )}>
           {t.icon}{t.label}
           {t.badge != null && t.badge > 0 && (
@@ -333,7 +333,7 @@ export function EmptyState({ icon, title, subtitle, action }: EmptyProps) {
 interface PageHeaderProps { title: string; subtitle?: string; actions?: ReactNode; back?: () => void }
 export function PageHeader({ title, subtitle, actions, back }: PageHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-5">
+    <div className="flex items-start justify-between gap-4 mb-5 brand-watermark">
       <div className="flex items-center gap-3">
         {back && (
           <button onClick={back} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
@@ -367,7 +367,7 @@ export function StatCard({ label, value, icon, color, sub, onClick, trend, class
   return (
     <Card {...props} hover={!!onClick} onClick={onClick} className={clsx('relative overflow-hidden', className)}>
       <div className="flex items-start justify-between mb-3">
-        <div className={clsx('p-2.5 rounded-lg', color)}>{icon}</div>
+        <div className={clsx('p-2.5 rounded-xl', color)}>{icon}</div>
         {trend !== undefined && (
           <span className={clsx('text-[10px] font-bold px-1.5 py-0.5 rounded-full', trend >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600')}>
             {trend >= 0 ? '+' : ''}{trend}%

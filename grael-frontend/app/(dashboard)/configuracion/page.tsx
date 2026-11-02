@@ -34,7 +34,7 @@ export default function ConfiguracionPage() {
 
   // Sede
   const [sede, setSede] = useState({
-    nombre:     'GRAEL - Agencia CUSCO',
+    nombre:     'Expreso Machupicchu - Sede Cusco',
     ruc:        '20601234567',
     direccion:  'Av. El Sol 123, Cusco',
     telefono:   '984512369',

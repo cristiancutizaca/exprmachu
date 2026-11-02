@@ -11,16 +11,16 @@ const config: Config = {
       colors: {
         navy: {
           50: '#eef2f7', 100: '#d5dfe8',
-          400: '#3a5f85', 500: '#1c3a5c', 600: '#162e47',
+          400: '#466b8d', 500: '#0e3257', 600: '#082440',
         },
         sky: {
-          brand: '#3b97c8', dark: '#2d7fad', light: '#7ec8e8',
+          brand: '#12649a', dark: '#0e507e', light: '#8cc6e2',
           50: '#f0f8fd',
         },
-        subbar: '#1e4d87',
+        subbar: '#134274', gold: { brand: '#f4b000', dark: '#d89a00', soft: '#fff5d9' },
       },
       boxShadow: {
-        card:   '0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)',
+        card:   '0 7px 24px rgba(11,49,83,.045), 0 1px 3px rgba(11,49,83,.06)',
         topbar: '0 2px 8px rgba(0,0,0,0.18)',
         modal:  '0 20px 60px rgba(0,0,0,0.25)',
       },

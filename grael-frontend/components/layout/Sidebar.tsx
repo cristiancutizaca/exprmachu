@@ -18,10 +18,10 @@ type NavGroup = { group: string | null; items: NavItem[] }
 const ALL_ROLES: Role[] = ['ADMIN_SEDE', 'OPERADOR', 'SUPERVISOR', 'CAJERO', 'ALMACEN', 'REPARTIDOR', 'AUDITOR', 'SUPERADMIN']
 const NAV: NavGroup[] = [
   { group: null, items: [
-    { href:'/dashboard', label:'Dashboard', Icon:LayoutDashboard, allowedRoles: ALL_ROLES },
+    { href:'/dashboard', label:'Centro de operaciones', Icon:LayoutDashboard, allowedRoles: ALL_ROLES },
   ]},
   { group:'Operaciones', items: [
-    { href:'/recepcion',   label:'Recepcion de Carga', Icon:Truck,          allowedRoles:['ADMIN_SEDE','OPERADOR','SUPERVISOR','SUPERADMIN'] },
+    { href:'/recepcion',   label:'Recepción de carga', Icon:Truck,          allowedRoles:['ADMIN_SEDE','OPERADOR','SUPERVISOR','SUPERADMIN'] },
     { href:'/busqueda',    label:'Búsqueda de Ticket', Icon:ListOrdered,    allowedRoles: ALL_ROLES },
     { href:'/transbordo',  label:'Transbordo',         Icon:ArrowLeftRight, allowedRoles:['ADMIN_SEDE','SUPERVISOR','ALMACEN','SUPERADMIN'] },
     { href:'/manifiesto',  label:'Manifiesto',         Icon:ClipboardList,  allowedRoles:['ADMIN_SEDE','SUPERVISOR','ALMACEN','SUPERADMIN'] },
@@ -90,8 +90,8 @@ export default function Sidebar({ currentPath }: { currentPath: string }) {
       <aside
         aria-label="Menú Operaciones"
         className={clsx(
-          'fixed top-[92px] left-0 bottom-0 z-50 w-[300px] max-w-[calc(100vw-24px)] bg-white border-r border-gray-200',
-          'shadow-[2px_0_12px_rgba(0,0,0,0.12)] overflow-hidden drawer-transition transform',
+          'fixed top-[92px] left-0 bottom-0 z-50 w-[308px] max-w-[calc(100vw-24px)] brand-soft-panel border-r border-[#d8e4f0]',
+          'shadow-[2px_0_12px_rgba(6,34,61,0.16)] overflow-hidden drawer-transition transform',
           drawerOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         )}>
         <div className="w-full h-full overflow-y-auto pb-6">
@@ -107,11 +107,11 @@ export default function Sidebar({ currentPath }: { currentPath: string }) {
                 const badge  = getBadge(href, isDemoMode)
                 return (
                   <Link key={href} href={href} onClick={() => useUIStore.getState().setDrawerOpen(false)} className={clsx(
-                    'flex items-center gap-2.5 px-4 py-2 text-[12.5px] transition-all border-l-[3px] group',
-                    active ? 'bg-blue-50 text-navy-500 border-l-subbar font-semibold'
-                           : 'text-gray-500 border-l-transparent hover:bg-blue-50/50 hover:text-navy-500 hover:border-l-sky-brand'
+                    'flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] transition-all border-l-[3px] group',
+                    active ? 'bg-[#fff8e6] text-navy-500 border-l-gold-brand font-semibold shadow-sm'
+                           : 'text-gray-600 border-l-transparent hover:bg-[#f6faff] hover:text-navy-500 hover:border-l-[#f4b000]'
                   )}>
-                    <Icon size={14} className={clsx('flex-shrink-0 transition-colors', active?'text-subbar':'text-gray-400 group-hover:text-subbar')}/>
+                    <Icon size={14} className={clsx('flex-shrink-0 transition-colors', active?'text-gold-dark':'text-gray-400 group-hover:text-navy-500')}/>
                     <span className="flex-1 truncate">{label}</span>
                     {badge && (
                       <span className={clsx('text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0', badge.cls)}>
@@ -123,11 +123,15 @@ export default function Sidebar({ currentPath }: { currentPath: string }) {
               })}
             </div>
           ))}
-          <div className="mx-4 mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-            <p className="text-[10px] font-bold text-navy-500">GRAEL Sistema V10</p>
-            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-              {isDemoMode ? 'MODO DEMO · Sin backend' : `Sesión ${user?.username || ''} · ${new Date().toLocaleDateString('es-PE')}`}
-            </p>
+          <div className="mx-4 mt-5 rounded-xl overflow-hidden border border-[#d4e2ef] brand-watermark">
+            <div className="h-1 brand-accent-line" />
+            <div className="p-3 bg-white">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-navy-500">Expreso Machupicchu</p>
+              <p className="text-[10px] text-gray-500 mt-1">Plataforma operativa de encomiendas, cargas, courier y reparto multisede.</p>
+              <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+                {isDemoMode ? 'MODO DEMO · Sin backend' : `Sesión ${user?.username || ''} · ${new Date().toLocaleDateString('es-PE')}`}
+              </p>
+            </div>
           </div>
         </div>
       </aside>

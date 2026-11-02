@@ -1,4 +1,5 @@
 'use client'
+import { BrandHero } from '@/components/brand/BrandIdentity'
 import { useCallback, useEffect, useState } from 'react'
 import { FileText, Download, Search, Eye, X, Printer, CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -145,7 +146,7 @@ export default function ComprobantesPage() {
   const notas     = comps.filter(c=>c.tipo==='NOTA_CREDITO').length
 
   const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char] || char))
-  const representation = (comp: Comprobante) => `<!doctype html><html lang="es"><meta charset="utf-8"><title>${escapeHtml(comp.serie)}-${escapeHtml(comp.numero)}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1c3a5c}h1{font-size:20px}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:last-child{text-align:right;font-weight:bold}</style><h1>GRAEL — ${escapeHtml(TIPO_STYLE[comp.tipo]?.label || comp.tipo)}</h1><p>Comprobante: <strong>${escapeHtml(comp.serie)}-${escapeHtml(comp.numero)}</strong></p><p>Cliente: ${escapeHtml(comp.cliente)} · ${escapeHtml(comp.rucDni)}</p><p>Ticket: ${escapeHtml(comp.ticketRef)} · Fecha: ${escapeHtml(comp.fecha)} ${escapeHtml(comp.hora)}</p><table><tr><td>Servicio de Transporte de Carga</td><td>S/ ${comp.total.toFixed(2)}</td></tr><tr><td>Sub total</td><td>S/ ${comp.subTotal.toFixed(2)}</td></tr><tr><td>IGV</td><td>S/ ${comp.igv.toFixed(2)}</td></tr><tr><td>Total</td><td>S/ ${comp.total.toFixed(2)}</td></tr></table><p>Estado: ${escapeHtml(comp.estado)}</p></html>`
+  const representation = (comp: Comprobante) => `<!doctype html><html lang="es"><meta charset="utf-8"><title>${escapeHtml(comp.serie)}-${escapeHtml(comp.numero)}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1c3a5c}h1{font-size:20px}table{width:100%;border-collapse:collapse}td{padding:8px;border-bottom:1px solid #ddd}td:last-child{text-align:right;font-weight:bold}</style><h1>EXPRESO MACHUPICCHU — ${escapeHtml(TIPO_STYLE[comp.tipo]?.label || comp.tipo)}</h1><p>Comprobante: <strong>${escapeHtml(comp.serie)}-${escapeHtml(comp.numero)}</strong></p><p>Cliente: ${escapeHtml(comp.cliente)} · ${escapeHtml(comp.rucDni)}</p><p>Ticket: ${escapeHtml(comp.ticketRef)} · Fecha: ${escapeHtml(comp.fecha)} ${escapeHtml(comp.hora)}</p><table><tr><td>Servicio de Transporte de Carga</td><td>S/ ${comp.total.toFixed(2)}</td></tr><tr><td>Sub total</td><td>S/ ${comp.subTotal.toFixed(2)}</td></tr><tr><td>IGV</td><td>S/ ${comp.igv.toFixed(2)}</td></tr><tr><td>Total</td><td>S/ ${comp.total.toFixed(2)}</td></tr></table><p>Estado: ${escapeHtml(comp.estado)}</p></html>`
   const downloadRepresentation = (comp: Comprobante) => {
     const blob = new Blob([representation(comp)], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -173,6 +174,7 @@ export default function ComprobantesPage() {
 
   return (
     <div className="pb-6">
+      <div className="mb-5"><BrandHero compact kicker="Documentos · Carga" title="Comprobantes" description="Emite y consulta documentos del servicio. La integración SUNAT real sigue pendiente de homologación." /></div>
       <PageHeader
         title="Comprobantes"
         subtitle={isDemoMode ? 'Modo Demo — datos locales' : 'Sesión real — datos del API'}

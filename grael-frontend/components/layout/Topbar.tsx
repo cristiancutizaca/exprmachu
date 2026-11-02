@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
 import type { Notificacion } from '@/lib/data'
 import { authApi } from '@/lib/api'
+import { BrandSignature } from '@/components/brand/BrandIdentity'
 
 const NOTIF_COLORS: Record<string, string> = {
   info:    'bg-blue-100 text-blue-600',
@@ -137,8 +138,7 @@ export default function Topbar() {
   }, [])
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-[54px] bg-navy-500 shadow-topbar
-                       flex items-center px-4 gap-3" ref={ref}>
+    <header className="fixed top-0 left-0 right-0 z-50 h-[54px] brand-card border-b border-white/10 shadow-topbar flex items-center px-4 gap-3" ref={ref}>
       {/* Hamburguesa */}
       <button onClick={toggleDrawer}
         className="p-1.5 rounded text-white/80 hover:text-white hover:bg-white/10 transition-all"
@@ -146,22 +146,18 @@ export default function Topbar() {
         <Menu size={20}/>
       </button>
 
-      {/* Logo */}
-      <Link href="/dashboard" className="flex items-baseline gap-2 select-none">
-        <span className="text-xl font-bold italic text-white tracking-widest">
-          GR<span className="text-sky-light">AE</span>L
-          <sup className="text-sky-light text-[10px] not-italic">›</sup>
-        </span>
-        <span className="text-white/60 text-xs tracking-wider hidden sm:block">ADM DE SEDE</span>
+      {/* Logotipo vectorial del sistema. El archivo corporativo final se incorpora por separado. */}
+      <Link href="/dashboard" className="flex items-center min-w-0" aria-label="Expreso Machupicchu, ir al inicio">
+        <BrandSignature inverse compact />
       </Link>
 
       {/* Spacer */}
       <div className="flex-1"/>
 
       {/* Sede pill */}
-      <div className="hidden md:flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
-        <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"/>
-        <span className="text-white/80 text-[11px] font-medium">{user?.sede || 'CUSCO'}</span>
+      <div className="hidden md:flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1 border border-white/10">
+        <div className="w-1.5 h-1.5 bg-gold-brand rounded-full animate-pulse"/>
+        <span className="text-white text-[11px] font-semibold">Sede {user?.sede || 'CUSCO'}</span>
       </div>
 
       {/* Notificaciones */}
@@ -186,8 +182,7 @@ export default function Topbar() {
         <button
           onClick={() => { setUserOpen(!userOpen); setNotifOpen(false) }}
           className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-full hover:bg-white/10 transition-colors">
-          <div className="w-7 h-7 bg-sky-brand rounded-full flex items-center justify-center
-                          text-white text-[11px] font-bold flex-shrink-0">
+          <div className="w-7 h-7 bg-gold-brand rounded-full flex items-center justify-center text-navy-500 text-[11px] font-black flex-shrink-0 shadow-sm">
             {initials}
           </div>
           <span className="text-white text-[11px] font-medium hidden md:block max-w-[120px] truncate">

@@ -99,3 +99,13 @@ El paquete final debe contener código fuente, migraciones, seeds, pruebas, scri
 - La creación de entregas serializa por ticket y rechaza planes activos que se superponen. La confirmación bloquea cada bulto para prevenir doble entrega concurrente.
 - Los módulos legacy sin backend operativo no muestran registros ficticios como si fueran reales. Las notificaciones ficticias no se presentan a usuarios autenticados.
 - El modo DEMO se bloquea incluso con la variable habilitada cuando NODE_ENV=production.
+
+## Identidad visual Expreso Machupicchu (noviembre 2026)
+
+Segunda pasada de diseño incorporada en toda la aplicación Next.js: sistema de tokens azul marino / azul de interfaz / dorado, marca vectorial interna provisional, login de dos paneles, barra superior y navegación, panel de operaciones con indicadores reales, cabeceras operativas de Recepción, Caja, Comprobantes, Egresos y Reportes, rastreo público, tarjetas, tablas y formularios.
+
+Se preservan endpoints, entidades, migraciones, usuarios, roles y claves de almacenamiento de la versión anterior para no romper las sesiones o los datos persistidos. El nombre interno de los paquetes `grael-*` también se conserva para evitar cambios de infraestructura innecesarios.
+
+**Arte oficial:** la marca vectorial incluida es una representación provisional con paisaje andino, no una copia verificada del logotipo oficial ni de los banners anteriores. Para incorporar imágenes institucionales exactas deberán añadirse los archivos fuente autorizados de la empresa.
+
+**Verificación pendiente:** las comprobaciones sintácticas de archivos TypeScript se ejecutaron localmente; no se completó una compilación integral Next.js ni pruebas E2E con servidor, dependencias npm y base PostgreSQL.

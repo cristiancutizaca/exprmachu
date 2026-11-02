@@ -7,6 +7,7 @@ import {
   ArrowRight, RefreshCw, Users, BarChart2, Plus
 } from 'lucide-react'
 import { Card, Badge, Button } from '@/components/ui'
+import { BrandHero } from '@/components/brand/BrandIdentity'
 import { getKPIs, TICKETS_DB, DESEMBARQUE_DB, PAGOS_HOY } from '@/lib/data'
 import { desembarqueApi, reportesApi, ticketsApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
@@ -18,7 +19,7 @@ function KpiCard({ label, value, sub, icon: Icon, color, trend, onClick }: {
   icon: any; color: string; trend?: 'up'|'down'|'neutral'; onClick?: () => void
 }) {
   return (
-    <Card className={`cursor-pointer hover:shadow-md transition-shadow ${onClick ? '' : 'cursor-default'}`}
+    <Card className={`border-t-[3px] border-t-[#f3bc43] hover:shadow-md transition-all ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
       onClick={onClick}>
       <div className="flex items-start justify-between mb-3">
         <div className={`p-2.5 rounded-lg ${color}`}>
@@ -122,34 +123,29 @@ export default function DashboardPage() {
 
   return (
     <div className="pb-8 space-y-5">
-      {/* Saludo + acciones rápidas */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {!isDemoMode && <span className="text-[10px] text-green-700">Sesión real · {loading ? 'actualizando…' : 'API conectada'}</span>}
-        <div>
-          <h1 className="text-[20px] font-black text-navy-500">
-            {greeting()}, {user?.nombre?.split(' ')[0]} 👋
-          </h1>
-          <p className="text-[13px] text-gray-500 mt-0.5">
-            {new Date().toLocaleDateString('es-PE',{ weekday:'long', year:'numeric', month:'long', day:'numeric' })}
-            {' — '}<span className="font-medium text-navy-400">Sede {user?.sede}</span>
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="primary" size="sm" icon={<Plus size={13}/>} onClick={() => router.push('/recepcion')}>
-            Nueva Recepción
-          </Button>
-          <Button variant="outline" size="sm" icon={<Search size={13}/>} onClick={() => router.push('/busqueda')}>
-            Buscar Ticket
-          </Button>
-        </div>
+      {/* Panel de bienvenida con marca corporativa y accesos operativos */}
+      <BrandHero
+        kicker="Centro de operaciones · Expreso Machupicchu"
+        title={`${greeting()}, ${user?.nombre?.split(' ')[0] || 'equipo'}`}
+        description="Recepción, custodia, movimiento de cargas, caja y entregas. Una vista unificada para operar cada sede con trazabilidad."
+        icon={Truck}
+        meta={<span>{new Date().toLocaleDateString('es-PE',{ weekday:'long', year:'numeric', month:'long', day:'numeric', timeZone:'America/Lima' })} · Sede {user?.sede || 'asignada'} · {isDemoMode ? 'MODO DEMO · Datos de ejemplo' : loading ? 'Actualizando información' : 'Sesión real'}</span>}
+        actions={<>
+          <Button variant="primary" size="md" icon={<Plus size={15}/>} onClick={() => router.push('/recepcion')}>Nueva recepción</Button>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-white/35 bg-white/10 px-4 py-2.5 text-[12px] font-bold text-white hover:bg-white/20 transition-colors" onClick={() => router.push('/busqueda')}><Search size={14}/>Buscar ticket</button>
+        </>}
+      />
+      <div className="flex items-center justify-between gap-3">
+        <div><p className="text-[11px] font-black uppercase tracking-[.16em] text-[#647c94]">Indicadores de la sede</p><p className="text-[12px] text-gray-500 mt-1">Datos operativos y financieros del período actual.</p></div>
+        <Button variant="outline" size="sm" loading={loading} icon={<RefreshCw size={13}/>} onClick={() => void loadDashboard()}>Actualizar</Button>
       </div>
 
       {/* KPIs principales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="Tickets hoy"          value={kpi.ticketsHoy}       icon={Truck}       color="bg-navy-500"  trend="up"      onClick={() => router.push('/busqueda')}/>
-        <KpiCard label="Cobrado hoy"           value={`S/ ${totalCajaDia.toLocaleString('es-PE',{minimumFractionDigits:2})}`} icon={Banknote}    color="bg-green-600" trend="up"      onClick={() => router.push('/caja-diaria')}/>
+        <KpiCard label="Tickets hoy"          value={kpi.ticketsHoy}       icon={Truck}       color="bg-[#0e3257]"      onClick={() => router.push('/busqueda')}/>
+        <KpiCard label="Cobrado hoy"           value={`S/ ${totalCajaDia.toLocaleString('es-PE',{minimumFractionDigits:2})}`} icon={Banknote}    color="bg-green-700"      onClick={() => router.push('/caja-diaria')}/>
         <KpiCard label="Pend. de cobro"        value={kpi.pendientesCobro}  icon={AlertCircle} color="bg-amber-500" sub={`S/ ${kpi.montoPendiente.toLocaleString('es-PE',{minimumFractionDigits:0})}`} onClick={() => router.push('/busqueda')}/>
-        <KpiCard label="En tránsito"           value={kpi.enTransito}       icon={RefreshCw}   color="bg-sky-brand" trend="neutral"  onClick={() => router.push('/transbordo')}/>
+        <KpiCard label="En tránsito"           value={kpi.enTransito}       icon={RefreshCw}   color="bg-[#12649a]"  onClick={() => router.push('/transbordo')}/>
       </div>
 
       {/* Segunda fila KPIs */}
@@ -273,7 +269,7 @@ export default function DashboardPage() {
             { label:'Comprobantes',      Icon:CheckCircle, href:'/comprobantes',color:'bg-purple-600', tip:'' },
           ].map(({ label, Icon, href, color, tip }) => (
             <button key={href} onClick={() => router.push(href)}
-              className="flex flex-col items-center gap-2 p-4 bg-white rounded-xl border border-gray-200
+              className="flex flex-col items-center gap-2 p-4 bg-white rounded-2xl border border-[#d9e6f0]
                          hover:border-sky-brand hover:shadow-md transition-all group">
               <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center
                                group-hover:scale-110 transition-transform`}>

@@ -12,11 +12,11 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #1a2332; background: #f0f2f5;
+  color: #17212f; background: #eef3f8;
   overflow-x: hidden;
 }
-:focus-visible { outline: 2px solid #3b97c8; outline-offset: 2px; border-radius: 4px; }
-::selection { background: rgba(59, 151, 200, 0.18); }
+:focus-visible { outline: 2px solid #f4b000; outline-offset: 2px; border-radius: 4px; }
+::selection { background: rgba(244, 176, 0, 0.24); }
 
 /* ─── Layout transitions ───────────────────────────────────────────────────── */
 .drawer-transition  { transition: transform 0.22s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.18s ease-out; overflow: hidden; }
@@ -72,14 +72,58 @@ input, select, textarea { font-family: inherit; }
 }
 [data-tip]:hover::after { opacity: 1; }
 
-/* ─── GRAEL brand colors como CSS vars + clases ─────────────────────────────  */
+/* ─── Identidad visual Expreso Machupicchu ────────────────────────────────── */
+
 :root {
-  --navy:     #1c3a5c;
-  --navy-600: #162e47;
-  --sky:      #3b97c8;
-  --sky-dark: #2d7fad;
-  --sky-light:#7ec8e8;
-  --subbar:   #1e4d87;
+  --navy:       #0e3257;
+  --navy-600:   #082440;
+  --sky:        #12649a;
+  --sky-dark:   #0e507e;
+  --sky-light:  #8cc6e2;
+  --subbar:     #134274;
+  --gold:       #f4b000;
+  --gold-dark:  #d89a00;
+  --gold-soft:  #fff3cc;
+  --mist:       #eef4fb;
+}
+
+html { background: linear-gradient(180deg, #f6f9fc 0%, #eef4fb 100%); }
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top left, rgba(244,176,0,0.14), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(14,50,87,0.10), transparent 30%),
+    linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0));
+  z-index: -1;
+}
+
+.brand-card {
+  background: linear-gradient(135deg, rgba(14,50,87,0.98), rgba(19,66,116,0.96));
+  color: #fff;
+}
+.brand-accent-line {
+  background: linear-gradient(90deg, var(--gold), #ffd76a);
+}
+.brand-soft-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid rgba(14,50,87,0.08);
+}
+.brand-watermark {
+  position: relative;
+}
+.brand-watermark::after {
+  content: 'EXPRESO MACHUPICCHU';
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  font-weight: 800;
+  color: rgba(14,50,87,0.08);
+  pointer-events: none;
 }
 
 .bg-navy-500   { background-color: var(--navy); }
@@ -95,10 +139,49 @@ input, select, textarea { font-family: inherit; }
 .text-sky-brand    { color: var(--sky); }
 .text-sky-light    { color: var(--sky-light); }
 .border-sky-brand  { border-color: var(--sky); }
-.focus\:ring-sky-brand\/20:focus { --tw-ring-color: rgba(59,151,200,0.2); }
+.focus\:ring-sky-brand\/20:focus { --tw-ring-color: rgba(18,100,154,0.2); }
 .focus\:border-sky-brand:focus   { border-color: var(--sky); }
 .ring-sky-brand    { --tw-ring-color: var(--sky); }
 .bg-sky-50         { background-color: #f0f8fd; }
 
 .bg-subbar        { background-color: var(--subbar); }
 .border-l-subbar  { border-left-color: var(--subbar); }
+
+.bg-gold-brand { background-color: var(--gold); }
+.bg-gold-soft  { background-color: var(--gold-soft); }
+.text-gold-brand { color: var(--gold); }
+.text-gold-dark  { color: var(--gold-dark); }
+.border-gold-brand { border-color: var(--gold); }
+.hover\:bg-gold-dark:hover { background-color: var(--gold-dark); }
+
+.focus\:border-gold-brand:focus { border-color: var(--gold); }
+.hover\:border-gold-brand:hover { border-color: var(--gold); }
+.border-l-gold-brand { border-left-color: var(--gold); }
+
+/* Segunda pasada: superficie coherente en módulos, sin alterar reglas del negocio */
+body { background: #edf3fa; color: #1f2e40; }
+main { scrollbar-gutter: stable; }
+main > div { animation: fadeIn .22s ease-out; }
+main table { font-variant-numeric: tabular-nums; }
+main thead { background: #f3f7fc; }
+main thead th { color: #536a83; letter-spacing: .045em; }
+main tbody tr { transition: background-color .12s ease; }
+main tbody tr:hover { background-color: #f8fbff; }
+main input:not([type='checkbox']):not([type='radio']),
+main select, main textarea { border-radius: 10px; }
+main input:focus-visible, main select:focus-visible, main textarea:focus-visible { outline-offset: 1px; }
+main h1, main h2, main h3 { letter-spacing: -.015em; }
+main .shadow-card { box-shadow: 0 8px 25px rgba(11,49,83,.045), 0 1px 3px rgba(11,49,83,.06); }
+button:disabled { cursor: not-allowed; }
+@media (max-width: 640px) {
+  main { padding: 14px !important; }
+  .brand-watermark::after { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+@media print {
+  main { background: white !important; overflow: visible !important; }
+  .brand-card { background: white !important; color: #000 !important; }
+  .brand-watermark::after { display: none !important; }
+}

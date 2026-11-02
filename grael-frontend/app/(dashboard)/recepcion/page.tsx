@@ -1,4 +1,5 @@
 'use client'
+import { BrandHero } from '@/components/brand/BrandIdentity'
 import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -63,13 +64,13 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
     setLoading(true); setStatus('idle')
     try {
       if (!isDemoMode) {
-        // Consulta solo el padrón de clientes registrados en GRAEL.
+        // Consulta solo el padrón de clientes registrados.
         // RENIEC/SUNAT aún no tienen integración real. No rellenar con fichas de demostración.
         const response = await clientesApi.byDniRuc(doc)
         if (!response.data?.razonSocial) { setStatus('error'); toast.error('Cliente sin nombre registrado'); return }
         setValue(`${prefix}Nombre`, response.data.razonSocial, { shouldValidate: true })
         setStatus('ok')
-        toast.success('Cliente encontrado en el padrón interno de GRAEL')
+        toast.success('Cliente encontrado en el padrón interno')
         return
       }
       if (tipoDoc === 'DNI') {
@@ -117,7 +118,7 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
                        disabled:opacity-50 transition-colors flex items-center gap-1.5 text-[11px] whitespace-nowrap">
             {loading ? <Loader2 size={12} className="animate-spin"/> :
               tipoDoc === 'DNI' ? <User size={12}/> : <Building2 size={12}/>}
-            {isDemoMode ? (tipoDoc === 'DNI' ? 'RENIEC demo' : 'SUNAT demo') : 'Clientes GRAEL'}
+            {isDemoMode ? (tipoDoc === 'DNI' ? 'RENIEC demo' : 'SUNAT demo') : 'Clientes registrados'}
           </button>
         </div>
       </div>
@@ -386,6 +387,7 @@ export default function RecepcionPage() {
 
   return (
     <div className="pb-28">
+      <div className="mb-5"><BrandHero compact kicker="Recepción y despacho" title="Nueva recepción de carga" description="Registra encomiendas con remitente, destinatario, peso, ruta y comprobantes. Conserva los controles y validaciones del formulario." /></div>
       <PageHeader
         title="Registro de la Nueva Recepcion de Carga"
         actions={

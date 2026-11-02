@@ -1,4 +1,5 @@
 'use client'
+import { BrandHero } from '@/components/brand/BrandIdentity'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -49,6 +50,7 @@ export default function EgresosPage() {
 
   return (
     <div className="space-y-5 pb-8">
+      <div className="mb-5"><BrandHero compact kicker="Finanzas · Control" title="Egresos y autorizaciones" description="Registra y supervisa gastos operativos, aprobaciones y movimientos de salida de caja." /></div>
       <PageHeader title="Egresos" subtitle="Solicitudes, aprobación y salida controlada de caja" actions={<Button variant="outline" size="sm" icon={<RefreshCw size={13} />} onClick={() => void load()}>Actualizar</Button>} />
       <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-800"><CircleDollarSign size={16} /><span><strong>{isDemoMode ? 'Modo Demo' : 'Modo API real'}</strong> · {isDemoMode ? 'Las acciones son locales y no afectan caja.' : 'La aprobación con afectaCaja requiere caja abierta y autorización.'}</span></div>
       <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">

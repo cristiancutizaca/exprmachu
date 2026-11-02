@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { trackingApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
 import { Button, Card, Input, Badge } from '@/components/ui'
+import { BrandSignature } from '@/components/brand/BrandIdentity'
 
 const DEMO_EVENTS = [
   { tipoEvento: 'RECEPCIONADO', fechaHora: '2026-08-19T08:15:00' },
@@ -37,21 +38,21 @@ export default function TrackingPublicPage() {
     } finally { setLoading(false) }
   }
 
-  return <main className="min-h-screen bg-[#f4f8fb] px-4 py-10">
+  return <main className="min-h-screen bg-[linear-gradient(180deg,#f7fbff_0%,#eef4fb_100%)] px-4 py-10">
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
-        <p className="text-xs font-bold tracking-[0.25em] text-sky-brand">GRAEL</p>
-        <h1 className="mt-2 text-2xl font-semibold text-navy-500">Consulta pública de envío</h1>
+        <div className="inline-flex rounded-xl bg-white border border-[#dce6f0] shadow-sm p-3"><BrandSignature /></div>
+        <h1 className="mt-2 text-2xl font-black text-navy-500">Consulta pública de envío</h1>
         <p className="mt-2 text-sm text-gray-500">Consulte el último estado y los eventos visibles de su ticket.</p>
         {isDemoMode && <Badge className="mt-3" variant="warning" label="MODO DEMO" />}
       </div>
-      <Card>
+      <Card className="brand-watermark">
         <form onSubmit={consultar} className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex-1"><label className="mb-1 block text-[11px] font-semibold text-gray-500">Código de ticket</label><Input value={codigo} onChange={e=>setCodigo(e.target.value)} placeholder="Ej. 301-0631089" /></div>
           <Button type="submit" loading={loading} icon={<Search size={14}/>}>Consultar</Button>
         </form>
       </Card>
-      {resultado && <Card className="mt-4">
+      {resultado && <Card className="mt-4 brand-watermark">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
           <div><p className="text-[10px] uppercase tracking-wider text-gray-400">Ticket</p><p className="text-lg font-bold text-navy-500">{resultado.codigo}</p></div>
           <Badge variant="info" label={resultado.estado} />

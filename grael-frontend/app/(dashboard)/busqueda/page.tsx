@@ -340,12 +340,12 @@ export default function BusquedaPage() {
     if (isDemoMode) {
       const csv = ['TICKET,ESTADO,ORIGEN,DESTINO,TOTAL', ...tickets.map(t=>[t.numeroTicket,t.estado,t.origen.nombre,t.destino.nombre,t.total].join(','))].join('\\n')
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-      const a = document.createElement('a'); a.href = url; a.download = 'grael-os-demo.csv'; a.click(); URL.revokeObjectURL(url)
+      const a = document.createElement('a'); a.href = url; a.download = 'expreso-machupicchu-tickets-demo.csv'; a.click(); URL.revokeObjectURL(url)
       return
     }
     try {
       const response = await ticketsApi.descargarOS({ numeroTicket:fNumero || undefined, dniRuc:fDniRuc || undefined, estado:(fEstado || '') as any, anulado:fAnulado === 'SI' ? true : fAnulado === 'NO' ? false : null, tipoCliente:(fTipoCliente || 'TODOS') as any, filtrarPor:(fFiltrarPor || '') as any, pagado:fPagado === 'PAGADO' ? true : fPagado === 'NO_PAGADO' ? false : null, tipoEntrega:(fEntrega || '') as any, fechaInicio:fFechaIni, fechaFin:fFechaFin, guiaRemisionRemitente:fGuia || undefined })
-      const url = URL.createObjectURL(response.data); const a = document.createElement('a'); a.href = url; a.download = 'grael-os.csv'; a.click(); URL.revokeObjectURL(url)
+      const url = URL.createObjectURL(response.data); const a = document.createElement('a'); a.href = url; a.download = 'expreso-machupicchu-tickets.csv'; a.click(); URL.revokeObjectURL(url)
     } catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo descargar OS') }
   }
 

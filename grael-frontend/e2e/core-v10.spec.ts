@@ -4,7 +4,7 @@ test('login real, drawer overlay y logout', async ({ page }) => {
   await page.goto('/login')
   await page.waitForLoadState('networkidle')
   await expect(page.getByRole('button', { name: 'Ingresar' })).toBeEnabled()
-  await page.getByPlaceholder('usuario@grael').fill(process.env.GRAEL_E2E_USER || 'jesus.cutisaca')
+  await page.getByPlaceholder('usuario@expresomachupicchu').fill(process.env.GRAEL_E2E_USER || 'jesus.cutisaca')
   await page.getByPlaceholder('••••••••').fill(process.env.GRAEL_E2E_PASSWORD || 'admin123')
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
@@ -28,7 +28,7 @@ test('navegación real a comprobantes y detracción sin fallback silencioso', as
   await page.goto('/login')
   await page.waitForLoadState('networkidle')
   await expect(page.getByRole('button', { name: 'Ingresar' })).toBeEnabled()
-  await page.getByPlaceholder('usuario@grael').fill(process.env.GRAEL_E2E_USER || 'jesus.cutisaca')
+  await page.getByPlaceholder('usuario@expresomachupicchu').fill(process.env.GRAEL_E2E_USER || 'jesus.cutisaca')
   await page.getByPlaceholder('••••••••').fill(process.env.GRAEL_E2E_PASSWORD || 'admin123')
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
@@ -41,7 +41,7 @@ test('navegación real a comprobantes y detracción sin fallback silencioso', as
 
 test('búsqueda QR real y acciones de QR/impresión', async ({ page }) => {
   await page.goto('/login')
-  await page.getByPlaceholder('usuario@grael').fill(process.env.GRAEL_E2E_USER || 'jesus.cutisaca')
+  await page.getByPlaceholder('usuario@expresomachupicchu').fill(process.env.GRAEL_E2E_USER || 'jesus.cutisaca')
   await page.getByPlaceholder('••••••••').fill(process.env.GRAEL_E2E_PASSWORD || 'admin123')
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
@@ -61,7 +61,7 @@ test('búsqueda QR real y acciones de QR/impresión', async ({ page }) => {
 
 test('Caja Diaria real: apertura, movimiento y cierre', async ({ page }) => {
   await page.goto('/login')
-  await page.getByPlaceholder('usuario@grael').fill(process.env.GRAEL_E2E_CASH_USER || 'maria.garcia')
+  await page.getByPlaceholder('usuario@expresomachupicchu').fill(process.env.GRAEL_E2E_CASH_USER || 'maria.garcia')
   await page.getByPlaceholder('••••••••').fill(process.env.GRAEL_E2E_CASH_PASSWORD || 'caj123')
   await page.getByRole('button', { name: 'Ingresar' }).click()
   await expect(page).toHaveURL(/\/caja-diaria$/)

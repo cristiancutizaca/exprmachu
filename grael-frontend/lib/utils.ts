@@ -71,7 +71,7 @@ export function exportToCSV(data: Record<string, any>[], filename: string) {
 }
 
 // ─── Print ────────────────────────────────────────────────────────────────────
-export function printElement(id: string, title = 'GRAEL') {
+export function printElement(id: string, title = 'Expreso Machupicchu') {
   const el = document.getElementById(id)
   if (!el) return
   const win = window.open('', '_blank')
