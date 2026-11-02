@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { format } from 'date-fns'
+import { hoyPeru } from '@/lib/peru-time'
 import {
   Search, Plus, Printer, Banknote, QrCode, Settings,
   Ticket, Save, X, Trash2, Loader2, User, Building2,
@@ -53,6 +53,8 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
 }) {
   const [loading, setLoading] = useState(false)
   const [status,  setStatus]  = useState<'idle'|'ok'|'error'>('idle')
+  const token = useAuthStore(state => state.token)
+  const isDemoMode = !token || token.startsWith('demo-')
   const tipoDoc = watch(`${prefix}TipoDoc`)
   const doc     = watch(`${prefix}Doc`)
 
@@ -60,6 +62,16 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
     if (!doc || doc.length < 8) { toast.error('Ingrese el número de documento'); return }
     setLoading(true); setStatus('idle')
     try {
+      if (!isDemoMode) {
+        // Consulta solo el padrón de clientes registrados en GRAEL.
+        // RENIEC/SUNAT aún no tienen integración real. No rellenar con fichas de demostración.
+        const response = await clientesApi.byDniRuc(doc)
+        if (!response.data?.razonSocial) { setStatus('error'); toast.error('Cliente sin nombre registrado'); return }
+        setValue(`${prefix}Nombre`, response.data.razonSocial, { shouldValidate: true })
+        setStatus('ok')
+        toast.success('Cliente encontrado en el padrón interno de GRAEL')
+        return
+      }
       if (tipoDoc === 'DNI') {
         const res = await consultarRENIEC(doc)
         if (res) {
@@ -72,6 +84,13 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
           setValue(`${prefix}Nombre`, res.razonSocial, { shouldValidate: true })
           setStatus('ok'); toast.success('Empresa encontrada en SUNAT')
         } else { setStatus('error'); toast.error('RUC no encontrado en SUNAT') }
+      }
+    } catch (error: any) {
+      setStatus('error')
+      if (!isDemoMode && error.response?.status === 404) {
+        toast('Cliente no registrado. Ingrese nombre o razón social manualmente. No se consultó RENIEC/SUNAT.')
+      } else {
+        toast.error('No se pudo consultar el padrón de clientes. Ingrese los datos manualmente.')
       }
     } finally { setLoading(false) }
   }
@@ -98,7 +117,7 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
                        disabled:opacity-50 transition-colors flex items-center gap-1.5 text-[11px] whitespace-nowrap">
             {loading ? <Loader2 size={12} className="animate-spin"/> :
               tipoDoc === 'DNI' ? <User size={12}/> : <Building2 size={12}/>}
-            {tipoDoc === 'DNI' ? 'RENIEC' : 'SUNAT'}
+            {isDemoMode ? (tipoDoc === 'DNI' ? 'RENIEC demo' : 'SUNAT demo') : 'Clientes GRAEL'}
           </button>
         </div>
       </div>
@@ -219,7 +238,7 @@ export default function RecepcionPage() {
   const { guias, mercaderias, addGuia, removeGuia, addMercaderia, removeMercaderia, resetRecepcion } =
     useRecepcionStore()
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = hoyPeru()
 
   useEffect(() => {
     if (isDemoMode) return
@@ -371,10 +390,10 @@ export default function RecepcionPage() {
         title="Registro de la Nueva Recepcion de Carga"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" icon={<RefreshCw size={13}/>}
+            {isDemoMode && <Button variant="outline" size="sm" icon={<RefreshCw size={13}/>}
               onClick={()=>setShowModal(true)}>
-              Reenviar ticket existente
-            </Button>
+              Reenviar ticket demo
+            </Button>}
             <Button variant="primary" size="sm" icon={<Search size={13}/>}
               onClick={()=>router.push('/busqueda')}>
               Búsqueda de Tickets
@@ -613,7 +632,7 @@ export default function RecepcionPage() {
       </Card>
 
       <FloatBar actions={floatActions}/>
-      {showModal && <ModalReenvio onSelect={aplicarReenvio} onClose={()=>setShowModal(false)}/>}
+      {showModal && isDemoMode && <ModalReenvio onSelect={aplicarReenvio} onClose={()=>setShowModal(false)}/>}
     </div>
   )
 }
