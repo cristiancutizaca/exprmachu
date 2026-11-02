@@ -24,7 +24,7 @@ export default function LoginPage() {
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(schema),
-    defaultValues: { username: 'jesus.cutisaca', password: '' },
+    defaultValues: { username: '', password: '' },
   })
 
   const onSubmit = async (data: LoginForm) => {
@@ -44,7 +44,7 @@ export default function LoginPage() {
 
   // Demo: login sin backend
   const demoLogin = () => {
-    if (process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') return
+    if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') return
     login({
       id: '1', nombre: 'JESUS SAMUEL', apellido: 'CUTISACA BUSTAMANTE',
       username: 'jesus.cutisaca', sede: 'CUSCO', rol: 'ADMIN_SEDE',
@@ -128,7 +128,7 @@ export default function LoginPage() {
             </button>
 
             {/* Demo explícita y deshabilitada por defecto. Nunca se habilita en producción. */}
-            {process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && <button
+            {process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && <button
               type="button"
               onClick={demoLogin}
               className="w-full py-2 text-xs text-gray-400 hover:text-navy-500 transition-colors

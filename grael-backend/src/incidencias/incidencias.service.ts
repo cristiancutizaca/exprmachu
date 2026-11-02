@@ -72,6 +72,7 @@ export class IncidenciasService {
   async resolver(id: string, dto: { estado: EstadoIncidencia; disposicion: DisposicionIncidencia; resolucion?: string }, usuarioId?: string, user?: any) {
     if (![EstadoIncidencia.RESUELTA, EstadoIncidencia.CERRADA].includes(dto.estado)) throw new BadRequestException({ statusCode: 400, code: 'INCIDENT_INVALID_RESOLUTION', message: 'La resolución debe cerrar la incidencia en RESUELTA o CERRADA', details: { estado: dto.estado } })
     if (!Object.values(DisposicionIncidencia).includes(dto.disposicion)) throw new BadRequestException({ statusCode: 400, code: 'INCIDENT_INVALID_RESOLUTION', message: 'La disposición física no es válida', details: { disposicion: dto.disposicion } })
+    if (dto.disposicion === DisposicionIncidencia.ENTREGADO) throw new BadRequestException({ statusCode: 409, code: 'INCIDENT_DELIVERY_REQUIRES_POD', message: 'Confirme la entrega en Entregas y POD. No se permite marcar entregado desde Incidencias.', details: {} })
     if (!user || !['ADMIN_SEDE', 'SUPERVISOR', 'SUPERADMIN'].includes(String(user.rol))) throw new ForbiddenException({ statusCode: 403, code: 'INCIDENT_RESOLUTION_FORBIDDEN', message: 'AUDITOR y perfiles operativos solo tienen lectura de incidencias', details: {} })
     return this.dataSource.transaction(async manager => {
       const incidencia = await manager.findOne(Incidencia, { where: { id }, lock: { mode: 'pessimistic_write' } })
@@ -82,6 +83,7 @@ export class IncidenciasService {
       assertSedeAccess(user, sedeId, 'resolver incidencias')
       const usuario = usuarioId ? await manager.findOneBy(Usuario, { id: usuarioId }) : null
       const antes = { estado: incidencia.estado, resolucion: incidencia.resolucion, disposicion: incidencia.disposicion, bultoEstado: incidenciaBulto?.estado }
+      if (!incidenciaBulto && dto.disposicion !== DisposicionIncidencia.SIN_CAMBIO_FISICO) throw new BadRequestException({ statusCode: 409, code: 'INCIDENT_BULTO_REQUIRED', message: 'Para una disposición física debe existir un bulto identificado', details: { disposicion: dto.disposicion } })
       if (incidenciaBulto) assertTicketBultoIntegrity(incidencia.ticketId, incidenciaBulto)
       let nextState: EstadoBulto | undefined
       let trackingType: TipoTrackingEvento | undefined

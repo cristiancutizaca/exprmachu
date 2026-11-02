@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { NOTIFICACIONES_INIT } from '@/lib/data'
 import type { User } from '@/types'
 import type { Notificacion } from '@/lib/data'
 
@@ -82,8 +81,8 @@ interface NotifStore {
   agregar:      (n: Omit<Notificacion, 'id' | 'leida'>) => void
 }
 export const useNotifStore = create<NotifStore>((set) => ({
-  notifs:      NOTIFICACIONES_INIT,
-  unreadCount: NOTIFICACIONES_INIT.filter(n => !n.leida).length,
+  notifs:      [],
+  unreadCount: 0,
   marcarLeida: (id) => set((s) => {
     const notifs = s.notifs.map(n => n.id === id ? { ...n, leida: true } : n)
     return { notifs, unreadCount: notifs.filter(n => !n.leida).length }

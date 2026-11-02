@@ -41,9 +41,19 @@ describe('EntregasService V10', () => {
   it('rechaza dos entregas activas para el mismo bulto', async () => {
     const ticket = { id: 'ticket-1', bultos: [{ id: 'bulto-1', estado: EstadoBulto.EN_ALMACEN, sedeActualId: 'sede-cusco' }] }
     const locked = { id: 'bulto-1', ticketId: 'ticket-1', estado: EstadoBulto.EN_ALMACEN, sedeActualId: 'sede-cusco' }
-    const manager: any = { findOne: jest.fn().mockResolvedValueOnce(ticket).mockResolvedValueOnce(locked).mockResolvedValueOnce({ id: 'delivery-old', estado: EstadoEntrega.PROGRAMADA }) }
+    const manager: any = { query: jest.fn(), find: jest.fn().mockResolvedValue([{ id: 'delivery-old', bultoId: 'bulto-1', estado: EstadoEntrega.PROGRAMADA }]), findOne: jest.fn().mockResolvedValueOnce(ticket).mockResolvedValueOnce(locked) }
     tx(manager)
     await expect(service.crear({ ticketId: 'ticket-1', bultoId: 'bulto-1', tipo: TipoEntregaV2.AGENCIA }, 'u-cusco', operadorCusco)).rejects.toMatchObject({ response: expect.objectContaining({ code: 'DELIVERY_ALREADY_ACTIVE' }) })
+  })
+
+  it('bloquea un bulto ya entregado aunque se intente usar otra entrega activa', async () => {
+    const entrega = { id: 'entrega-2', ticketId: 'ticket-1', bultoId: null, estado: EstadoEntrega.PROGRAMADA }
+    const ticket = { id: 'ticket-1', bultos: [{ id: 'bulto-1', ticketId: 'ticket-1', estado: EstadoBulto.EN_ALMACEN, sedeActualId: 'sede-cusco' }] }
+    const manager: any = { findOne: jest.fn().mockResolvedValueOnce(entrega).mockResolvedValueOnce(ticket).mockResolvedValueOnce({ id: 'bulto-1', ticketId: 'ticket-1', estado: EstadoBulto.ENTREGADO, sedeActualId: 'sede-cusco' }), save: jest.fn() }
+    tx(manager)
+    await expect(service.entregar('entrega-2', { nombreReceptor: 'Cliente', documentoReceptor: '12345678' }, 'u-cusco', operadorCusco))
+      .rejects.toMatchObject({ response: expect.objectContaining({ code: 'DELIVERY_ALREADY_CLOSED' }) })
+    expect(manager.save).not.toHaveBeenCalled()
   })
 
   it('rechaza confirmar una entrega ya entregada y no permite retroceso', async () => {

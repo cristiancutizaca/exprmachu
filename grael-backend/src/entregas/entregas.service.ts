@@ -43,6 +43,8 @@ export class EntregasService {
     return this.dataSource.transaction(async manager => {
       const ticket = await manager.findOne(Ticket, { where: { id: dto.ticketId }, relations: ['bultos', 'destino'] })
       if (!ticket) throw new NotFoundException('Ticket no encontrado')
+      // Serializa la planificación para el mismo ticket; evita dos entregas activas creadas en paralelo.
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`grael:entrega:ticket:${ticket.id}`])
       const activeBultos = (ticket.bultos || []).filter(bulto => bulto.estado !== EstadoBulto.ANULADO)
       if (activeBultos.length === 0) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_BULTO_REQUIRED', message: 'La entrega moderna requiere al menos un bulto activo', details: { ticketId: ticket.id } })
       const requestedIds = dto.bultoId ? [dto.bultoId] : activeBultos.map(item => item.id)
@@ -59,7 +61,8 @@ export class EntregasService {
       if (custodySites.length !== 1) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_CUSTODY_SITE_REQUIRED', message: 'Todos los bultos entregados deben estar en una única sede de custodia', details: { custodySites } })
       const sedeId = custodySites[0]
       assertSedeAccess(user, sedeId, 'crear entregas')
-      const existing = await manager.findOne(Entrega, { where: dto.bultoId ? { bultoId: dto.bultoId, estado: In(ACTIVE_DELIVERY_STATES) } : { ticketId: ticket.id, estado: In(ACTIVE_DELIVERY_STATES) } })
+      const activeDeliveries = await manager.find(Entrega, { where: { ticketId: ticket.id, estado: In(ACTIVE_DELIVERY_STATES) } })
+      const existing = activeDeliveries.find(item => !item.bultoId || !dto.bultoId || item.bultoId === dto.bultoId)
       if (existing) throw new ConflictException({ code: 'DELIVERY_ALREADY_ACTIVE', message: 'Ya existe una entrega activa para la carga seleccionada', details: { entregaId: existing.id } })
       const usuario = usuarioId ? await manager.findOneBy(Usuario, { id: usuarioId }) : null
       const saved = await manager.save(Entrega, manager.create(Entrega, { ticketId: ticket.id, bultoId: dto.bultoId, tipo: dto.tipo, fechaProgramada: dto.fechaProgramada ? new Date(dto.fechaProgramada) : undefined, observacion: dto.observacion, sedeId, usuarioId: usuario?.id, usuario }))
@@ -75,8 +78,19 @@ export class EntregasService {
       if (![EstadoEntrega.PROGRAMADA, EstadoEntrega.EN_REPARTO].includes(entrega.estado)) throw new BadRequestException({ statusCode: 409, code: entrega.estado === EstadoEntrega.ENTREGADA ? 'DELIVERY_ALREADY_CONFIRMED' : 'INVALID_STATE_TRANSITION', message: 'La entrega no admite confirmación desde su estado actual', details: { estado: entrega.estado } })
       const deliveryBulto = entrega.bultoId ? await manager.findOneByOrFail(Bulto, { id: entrega.bultoId }) : null
       const deliveryTicket = await manager.findOne(Ticket, { where: { id: entrega.ticketId }, relations: ['bultos'] })
-      const activeBultos = deliveryBulto ? [deliveryBulto] : (deliveryTicket?.bultos || []).filter(item => item.estado !== EstadoBulto.ANULADO)
-      if (activeBultos.length === 0) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_BULTO_REQUIRED', message: 'No hay bultos activos entregables', details: { ticketId: entrega.ticketId } })
+      const requestedBultos = deliveryBulto ? [deliveryBulto] : (deliveryTicket?.bultos || []).filter(item => item.estado !== EstadoBulto.ANULADO)
+      if (requestedBultos.length === 0) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_BULTO_REQUIRED', message: 'No hay bultos activos entregables', details: { ticketId: entrega.ticketId } })
+      // Cada bulto queda bloqueado, incluso si existen dos entregas diferentes para el mismo ticket.
+      const activeBultos: Bulto[] = []
+      for (const entry of [...requestedBultos].sort((a, b) => a.id.localeCompare(b.id))) {
+        const locked = await manager.findOne(Bulto, { where: { id: entry.id }, lock: { mode: 'pessimistic_write' } })
+        if (!locked) throw new NotFoundException(`Bulto ${entry.id} no encontrado`)
+        assertTicketBultoIntegrity(entrega.ticketId, locked)
+        if ([EstadoBulto.ENTREGADO, EstadoBulto.DEVUELTO, EstadoBulto.ANULADO].includes(locked.estado)) {
+          throw new ConflictException({ code: 'DELIVERY_ALREADY_CLOSED', message: 'El bulto ya tiene disposición final o está anulado', details: { bultoId: locked.id, estado: locked.estado } })
+        }
+        activeBultos.push(locked)
+      }
       const custodySites = [...new Set(activeBultos.map(item => item.sedeActualId).filter(Boolean))]
       if (custodySites.length !== 1) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_CUSTODY_SITE_REQUIRED', message: 'La entrega requiere custodia única', details: { custodySites } })
       assertSedeAccess(user, custodySites[0], 'confirmar entregas')

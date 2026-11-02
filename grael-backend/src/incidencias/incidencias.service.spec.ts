@@ -25,6 +25,12 @@ describe('IncidenciasService V10 — disposición física', () => {
     expect(dataSource.transaction).not.toHaveBeenCalled()
   })
 
+  it('impide saltarse Entregas/POD marcando un bulto entregado desde Incidencias', async () => {
+    await expect(service.resolver('inc-1', { estado: EstadoIncidencia.RESUELTA, disposicion: DisposicionIncidencia.ENTREGADO, resolucion: 'Cliente recibió' }, 'sup-1', supervisor))
+      .rejects.toMatchObject({ response: expect.objectContaining({ code: 'INCIDENT_DELIVERY_REQUIRES_POD' }) })
+    expect(dataSource.transaction).not.toHaveBeenCalled()
+  })
+
   it('resuelve incidencia y sincroniza estado físico, tracking y movimiento de almacén', async () => {
     const incidencia: any = { id: 'inc-1', ticketId: 'ticket-1', bultoId: 'bulto-1', sedeId: 'sede-1', estado: EstadoIncidencia.ABIERTA, resolucion: null }
     const bulto: any = { id: 'bulto-1', ticketId: 'ticket-1', sedeActualId: 'sede-1', estado: EstadoBulto.FALTANTE }

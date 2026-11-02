@@ -28,7 +28,7 @@ const NAV: NavGroup[] = [
     { href:'/desembarque', label:'Desembarque',        Icon:Ship,           allowedRoles:['ADMIN_SEDE','SUPERVISOR','ALMACEN','SUPERADMIN'] },
     { href:'/inventario',  label:'Inventario',         Icon:Warehouse,      allowedRoles:['ADMIN_SEDE','SUPERVISOR','ALMACEN','SUPERADMIN'] },
     { href:'/reparto',     label:'Reparto',            Icon:Route,           allowedRoles:['ADMIN_SEDE','SUPERVISOR','REPARTIDOR','SUPERADMIN'] },
-    { href:'/entregas',    label:'Entregas y POD',      Icon:Truck,          allowedRoles:['ADMIN_SEDE','SUPERVISOR','REPARTIDOR','SUPERADMIN'] },
+    { href:'/entregas',    label:'Entregas y POD',      Icon:Truck,          allowedRoles:['ADMIN_SEDE','OPERADOR','SUPERVISOR','REPARTIDOR','SUPERADMIN'] },
   ]},
   { group:'Administración', items: [
     { href:'/comprobantes',         label:'Comprobantes',         Icon:FileText,        allowedRoles:['ADMIN_SEDE','CAJERO','SUPERVISOR','AUDITOR','SUPERADMIN'] },

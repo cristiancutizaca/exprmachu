@@ -58,7 +58,8 @@ function ModalAgregar({ bolsa, onAdd, onClose }: { bolsa:Bolsa; onAdd:(ts:Ticket
 export default function BolsaPage() {
   const token = useAuthStore(s => s.token)
   const isDemoMode = !token || token.startsWith('demo-')
-  const [bolsas,setBolsas]=useState<Bolsa[]>(INIT)
+  const [demoBolsas,setBolsas]=useState<Bolsa[]>(INIT)
+  const bolsas = isDemoMode ? demoBolsas : []
   const [modal,setModal]=useState<Bolsa|null>(null)
   const [expanded,setExpanded]=useState<string|null>(null)
   const [showNew,setShowNew]=useState(false)

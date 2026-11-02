@@ -92,3 +92,10 @@ El paquete final debe contener código fuente, migraciones, seeds, pruebas, scri
 - Depuración de documentación V2–V9 de la raíz y scripts históricos no utilizados. Las migraciones se mantienen para upgrades.
 
 > **Advertencia:** estas correcciones no implican que el sistema esté listo para producción. SUNAT sigue en modo MOCK; requieren pruebas de integración con PostgreSQL, E2E y aceptación operativa.
+
+### Endurecimiento adicional
+
+- Las incidencias no pueden marcar mercadería como ENTREGADA saltándose Entregas/POD.
+- La creación de entregas serializa por ticket y rechaza planes activos que se superponen. La confirmación bloquea cada bulto para prevenir doble entrega concurrente.
+- Los módulos legacy sin backend operativo no muestran registros ficticios como si fueran reales. Las notificaciones ficticias no se presentan a usuarios autenticados.
+- El modo DEMO se bloquea incluso con la variable habilitada cuando NODE_ENV=production.

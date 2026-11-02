@@ -31,7 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return
     }
     if (token.startsWith('demo-')) {
-      if (process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') {
+      if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') {
         useAuthStore.getState().logout()
         setAuthChecked(false)
         router.replace('/login')
