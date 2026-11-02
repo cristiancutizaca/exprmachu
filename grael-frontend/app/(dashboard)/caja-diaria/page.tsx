@@ -30,6 +30,20 @@ function BarMini({ data, height = 80 }: { data: { label: string; value: number; 
   })}</svg>
 }
 
+function normalizarPagoCaja(p: any): PagoCaja {
+  return {
+    id: p.id,
+    hora: new Date(p.createdAt).toLocaleTimeString('es-PE', { timeZone: 'America/Lima', hour: '2-digit', minute: '2-digit', hour12: false }),
+    ticket: p.ticket?.numeroTicket || p.ticketId,
+    remitente: p.ticket?.remitente?.razonSocial || '—',
+    destinatario: p.ticket?.destinatario?.razonSocial || '—',
+    ruta: `${p.ticket?.origen?.nombre || ''} → ${p.ticket?.destino?.nombre || ''}`,
+    metodoPago: p.metodoPago,
+    monto: Number(p.monto || 0),
+    usuario: p.usuario?.username || '—',
+  }
+}
+
 function PagoRow({ pago, idx }: { pago: PagoCaja; idx: number }) {
   const Icon = METHOD_ICONS[pago.metodoPago] || Wallet
   return <tr className="border-b border-gray-100 hover:bg-gray-50"><td className="px-3 py-3 text-[11px] text-gray-400">{idx + 1}</td><td className="px-3 py-3 text-[11px] font-mono text-gray-500">{pago.hora}</td><td className="px-3 py-3 font-semibold text-[12px] text-navy-500">{pago.ticket}</td><td className="px-3 py-3 text-[11px] text-gray-700">{pago.remitente}</td><td className="px-3 py-3 text-[11px] text-gray-600">{pago.destinatario}</td><td className="px-3 py-3 text-[11px] text-sky-brand">{pago.ruta}</td><td className="px-3 py-3"><span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${METHOD_BG[pago.metodoPago] || 'bg-gray-100 text-gray-600'}`}><Icon size={10}/>{pago.metodoPago}</span></td><td className="px-3 py-3 text-right font-black text-[13px] text-navy-500">{formatMoney(pago.monto)}</td></tr>
@@ -44,6 +58,8 @@ export default function CajaDiariaPage() {
   const [caja, setCaja] = useState<CajaReal | null>(null)
   const [resumen, setResumen] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
+  const [exportando, setExportando] = useState(false)
+  const [totalRegistros, setTotalRegistros] = useState(0)
   const [modal, setModal] = useState<'abrir' | 'movimiento' | 'cerrar' | null>(null)
   const [busqueda, setBusqueda] = useState('')
   const [tab, setTab] = useState('todos')
@@ -55,14 +71,16 @@ export default function CajaDiariaPage() {
   const [saldoContado, setSaldoContado] = useState('')
 
   const cargarCaja = useCallback(async () => {
-    if (isDemoMode) { setPagos(PAGOS_HOY); return }
+    if (isDemoMode) { setPagos(PAGOS_HOY); setTotalRegistros(PAGOS_HOY.length); return }
     setLoading(true)
     try {
       const [current, daily] = await Promise.all([cajaApi.actual(), cajaApi.delDia({ fecha, page: 1, limit: 100 })])
       const currentCaja = current.data as CajaReal | null
       setCaja(currentCaja)
       setResumen(currentCaja?.resumen || {})
-      setPagos((daily.data?.pagos || []).map((p: any) => ({ id: p.id, hora: new Date(p.createdAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }), ticket: p.ticket?.numeroTicket || p.ticketId, remitente: p.ticket?.remitente?.razonSocial || '—', destinatario: p.ticket?.destinatario?.razonSocial || '—', ruta: `${p.ticket?.origen?.nombre || ''} → ${p.ticket?.destino?.nombre || ''}`, metodoPago: p.metodoPago, monto: Number(p.monto || 0), usuario: p.usuario?.username || '—' })))
+      const registros = daily.data?.pagos || []
+      setTotalRegistros(Number(daily.data?.cantidadCobros ?? registros.length))
+      setPagos(registros.map(normalizarPagoCaja))
     } catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo cargar la caja real') }
     finally { setLoading(false) }
   }, [fecha, isDemoMode])
@@ -94,6 +112,40 @@ export default function CajaDiariaPage() {
   const expectedCash = isDemoMode ? total : Number(resumen.esperadoEfectivo || caja?.saldoEsperado || 0)
   const tabs = [{ id: 'todos', label: 'Todos' }, ...porMetodo.map(item => ({ id: item.method.toLowerCase(), label: item.method, badge: item.count }))]
 
+  const exportarCaja = async () => {
+    if (exportando) return
+    if (isDemoMode) {
+      if (!pagosFiltrados.length) { toast.error('No hay cobros para exportar'); return }
+      exportToCSV(pagosFiltrados as any, `caja_demo_${fecha}`)
+      toast.success('CSV de ejemplo exportado')
+      return
+    }
+    setExportando(true)
+    try {
+      // La API limita el detalle a 100 por página. No exportar solo la primera página.
+      const primera = await cajaApi.delDia({ fecha, page: 1, limit: 100 })
+      const paginas = Math.max(1, Number(primera.data?.totalPages || 1))
+      const esperado = Number(primera.data?.cantidadCobros || 0)
+      if (paginas > 100) throw new Error('La exportación supera 10 000 cobros. Se requiere un reporte de servidor para exportar sin pérdida.')
+      const todos: PagoCaja[] = (primera.data?.pagos || []).map(normalizarPagoCaja)
+      for (let pagina = 2; pagina <= paginas; pagina++) {
+        const respuesta = await cajaApi.delDia({ fecha, page: pagina, limit: 100 })
+        todos.push(...(respuesta.data?.pagos || []).map(normalizarPagoCaja))
+      }
+      if (todos.length !== esperado || new Set(todos.map(pago => pago.id)).size !== esperado) {
+        throw new Error('Los cobros cambiaron durante la exportación. Actualice Caja Diaria y vuelva a exportar.')
+      }
+      const filtrados = todos.filter(pago =>
+        (tab === 'todos' || pago.metodoPago === tab.toUpperCase()) &&
+        (!busqueda || `${pago.ticket} ${pago.remitente} ${pago.destinatario}`.toLowerCase().includes(busqueda.toLowerCase()))
+      )
+      if (!filtrados.length) { toast.error('No hay cobros para exportar'); return }
+      exportToCSV(filtrados as any, `caja_${fecha}`)
+      toast.success(`${filtrados.length} cobro(s) exportado(s) desde todas las páginas`)
+    } catch (error: any) { toast.error(error.message || 'No se pudo exportar Caja Diaria completa') }
+    finally { setExportando(false) }
+  }
+
   const printCaja = () => {
     const popup = window.open('', '_blank')
     if (!popup) { toast.error('El navegador bloqueó la ventana de impresión'); return }
@@ -102,12 +154,12 @@ export default function CajaDiariaPage() {
   }
 
   return <div className="pb-8 space-y-5">
-    <PageHeader title="Caja Diaria" subtitle={new Date(`${fecha}T12:00:00`).toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} actions={<div className="flex gap-2"><Button variant="outline" size="sm" icon={<Download size={13}/>} onClick={() => { exportToCSV(pagosFiltrados as any, `caja_${fecha}`); toast.success('CSV exportado desde datos cargados') }}>Exportar</Button><Button variant="secondary" size="sm" icon={<Printer size={13}/>} onClick={printCaja}>Imprimir</Button>{caja ? <><Button variant="outline" size="sm" onClick={() => setModal('movimiento')}>Movimiento</Button><Button variant="dark" size="sm" icon={<Lock size={13}/>} onClick={() => setModal('cerrar')}>Cierre de caja</Button></> : <Button variant="dark" size="sm" icon={<Lock size={13}/>} onClick={() => setModal('abrir')}>Abrir caja</Button>}</div>} />
+    <PageHeader title="Caja Diaria" subtitle={new Date(`${fecha}T12:00:00`).toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} actions={<div className="flex gap-2"><Button variant="outline" size="sm" icon={<Download size={13}/>} loading={exportando} onClick={() => void exportarCaja()}>Exportar</Button><Button variant="secondary" size="sm" icon={<Printer size={13}/>} onClick={printCaja}>Imprimir</Button>{caja ? <><Button variant="outline" size="sm" onClick={() => setModal('movimiento')}>Movimiento</Button><Button variant="dark" size="sm" icon={<Lock size={13}/>} onClick={() => setModal('cerrar')}>Cierre de caja</Button></> : <Button variant="dark" size="sm" icon={<Lock size={13}/>} onClick={() => setModal('abrir')}>Abrir caja</Button>}</div>} />
     <Card><div className="flex flex-wrap items-end gap-3"><FormField label="Fecha"><Input type="date" value={fecha} onChange={event => setFecha(event.target.value)} className="w-[160px]"/></FormField><Button variant="primary" icon={<Search size={13}/>} loading={loading} onClick={cargarCaja}>Ver caja</Button><div className="ml-auto"><Alert variant={caja ? 'success' : 'warning'} className="py-2"><span className="font-bold">{isDemoMode ? 'Caja Demo' : caja ? 'Caja abierta' : 'Sin caja abierta'}</span> — {isDemoMode ? 'datos simulados' : caja ? `sesión ${caja.id.slice(0, 8)}` : 'abra una sesión para cobrar'}</Alert></div></div></Card>
     {caja && <Card><div className="grid grid-cols-2 lg:grid-cols-6 gap-3 text-[11px]"><div><span className="text-gray-400">Sede</span><p className="font-bold">{caja.sede?.nombre || caja.sedeId}</p></div><div><span className="text-gray-400">Responsable</span><p className="font-bold">{caja.usuarioApertura?.username || user?.username || '—'}</p></div><div><span className="text-gray-400">Apertura</span><p className="font-bold">{caja.fechaApertura ? new Date(caja.fechaApertura).toLocaleString('es-PE') : '—'}</p></div><div><span className="text-gray-400">Saldo inicial</span><p className="font-bold">{formatMoney(Number(caja.saldoInicial || 0))}</p></div><div><span className="text-gray-400">Esperado</span><p className="font-bold text-sky-brand">{formatMoney(expectedCash)}</p></div><div><span className="text-gray-400">Estado</span><p className="font-bold text-green-700">{caja.estado}</p></div></div></Card>}
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><StatCard label="Total ingresos" value={formatMoney(effectiveTotal)} icon={<Calculator size={18} className="text-white"/>} color="bg-navy-500" sub={`${pagos.length} cobros`}/>{methods.slice(0, 3).map(method => { const amount = isDemoMode ? pagos.filter(p => p.metodoPago === method).reduce((s, p) => s + p.monto, 0) : Number(resumen[method.toLowerCase()] || 0); const Icon = METHOD_ICONS[method] || Wallet; return <StatCard key={method} label={method} value={formatMoney(amount)} icon={<Icon size={18} className="text-white"/>} color="bg-sky-brand" sub="API / resumen"/> })}</div>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3"><StatCard label="Total ingresos" value={formatMoney(effectiveTotal)} icon={<Calculator size={18} className="text-white"/>} color="bg-navy-500" sub={`${isDemoMode ? pagos.length : totalRegistros} cobros en el día`}/>{methods.slice(0, 3).map(method => { const amount = isDemoMode ? pagos.filter(p => p.metodoPago === method).reduce((s, p) => s + p.monto, 0) : Number(resumen[method.toLowerCase()] || 0); const Icon = METHOD_ICONS[method] || Wallet; return <StatCard key={method} label={method} value={formatMoney(amount)} icon={<Icon size={18} className="text-white"/>} color="bg-sky-brand" sub="API / resumen"/> })}</div>
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4"><Card className="lg:col-span-2"><div className="flex justify-between mb-4"><div><p className="text-[13px] font-semibold text-gray-700">Cobros por hora</p><p className="text-[11px] text-gray-400">Distribución del día</p></div><MoneyStat value={effectiveTotal} size="lg"/></div><BarMini data={Array.from({ length: 7 }, (_, i) => ({ label: `${8 + i * 2}:00`, value: pagos.filter(p => Number(p.hora.split(':')[0]) >= 8 + i * 2 && Number(p.hora.split(':')[0]) < 10 + i * 2).reduce((s, p) => s + p.monto, 0), color: '#3b97c8' }))} height={100}/></Card><Card><p className="text-[13px] font-semibold text-gray-700 mb-3">Resumen financiero</p><div className="space-y-2 text-[12px]"><div className="flex justify-between"><span>Efectivo esperado</span><strong>{formatMoney(expectedCash)}</strong></div><div className="flex justify-between"><span>Total digital</span><strong>{formatMoney(Number(resumen.totalDigital || 0))}</strong></div><div className="flex justify-between"><span>Egresos</span><strong>{formatMoney(Number(resumen.totalEgresos || 0))}</strong></div><div className="flex justify-between border-t pt-2"><span>Total ingresos</span><strong>{formatMoney(effectiveTotal)}</strong></div></div></Card></div>
-    <Card padding={false} className="overflow-hidden"><div className="px-4 pt-4 pb-3 border-b space-y-3"><div className="flex items-center justify-between"><p className="text-[13px] font-semibold text-gray-700">Detalle de cobros</p><span className="text-[11px] bg-navy-50 text-navy-500 px-2 py-0.5 rounded-full font-semibold">{pagosFiltrados.length} registros</span></div><div className="flex flex-wrap items-center gap-3"><Tabs items={tabs} active={tab} onChange={setTab} variant="pills"/><Input value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar por ticket, cliente..." className="w-[220px] ml-auto"/></div></div><div className="overflow-x-auto"><table className="w-full border-collapse"><thead><tr className="bg-gray-50 border-b border-gray-200">{['#', 'Hora', 'Ticket', 'Remitente', 'Destinatario', 'Ruta', 'Método', 'Monto'].map(header => <th key={header} className="px-3 py-2.5 text-left text-[10px] font-bold text-gray-500 uppercase">{header}</th>)}</tr></thead><tbody>{pagosFiltrados.length ? pagosFiltrados.map((p, index) => <PagoRow key={p.id} pago={p} idx={index}/>) : <tr><td colSpan={8}><EmptyState icon={<Calculator size={28}/>} title="Sin cobros" subtitle={isDemoMode ? 'No hay operaciones Demo con este filtro' : 'No hay pagos de la sede y fecha consultadas'}/></td></tr>}</tbody></table></div></Card>
+    <Card padding={false} className="overflow-hidden"><div className="px-4 pt-4 pb-3 border-b space-y-3"><div className="flex items-center justify-between"><p className="text-[13px] font-semibold text-gray-700">Detalle de cobros</p><span className="text-[11px] bg-navy-50 text-navy-500 px-2 py-0.5 rounded-full font-semibold">{pagosFiltrados.length} visibles de {isDemoMode ? pagos.length : totalRegistros} registros del día</span></div><div className="flex flex-wrap items-center gap-3"><Tabs items={tabs} active={tab} onChange={setTab} variant="pills"/><Input value={busqueda} onChange={event => setBusqueda(event.target.value)} placeholder="Buscar por ticket, cliente..." className="w-[220px] ml-auto"/></div></div><div className="overflow-x-auto"><table className="w-full border-collapse"><thead><tr className="bg-gray-50 border-b border-gray-200">{['#', 'Hora', 'Ticket', 'Remitente', 'Destinatario', 'Ruta', 'Método', 'Monto'].map(header => <th key={header} className="px-3 py-2.5 text-left text-[10px] font-bold text-gray-500 uppercase">{header}</th>)}</tr></thead><tbody>{pagosFiltrados.length ? pagosFiltrados.map((p, index) => <PagoRow key={p.id} pago={p} idx={index}/>) : <tr><td colSpan={8}><EmptyState icon={<Calculator size={28}/>} title="Sin cobros" subtitle={isDemoMode ? 'No hay operaciones Demo con este filtro' : 'No hay pagos de la sede y fecha consultadas'}/></td></tr>}</tbody></table></div></Card>
     <Modal open={modal === 'abrir'} title="Abrir caja" onClose={() => setModal(null)} footer={<div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setModal(null)}>Cancelar</Button><Button variant="dark" className="flex-1" onClick={submitApertura}>Abrir caja</Button></div>}><div className="space-y-3"><FormField label="Saldo inicial"><Input aria-label="Saldo inicial" type="number" min="0" value={saldoInicial} onChange={event => setSaldoInicial(event.target.value)}/></FormField><FormField label="Observación"><Input aria-label="Observación de apertura" value={observacion} onChange={event => setObservacion(event.target.value)} placeholder="Opcional"/></FormField></div></Modal>
     <Modal open={modal === 'movimiento'} title="Registrar movimiento" onClose={() => setModal(null)} footer={<div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setModal(null)}>Cancelar</Button><Button variant="dark" className="flex-1" onClick={submitMovimiento}>Guardar</Button></div>}><div className="space-y-3"><FormField label="Tipo"><select className="w-full border rounded-lg p-2 text-sm" value={tipoMovimiento} onChange={event => setTipoMovimiento(event.target.value)}><option value="INGRESO">Ingreso</option><option value="EGRESO">Egreso</option><option value="AJUSTE">Ajuste autorizado</option></select></FormField><FormField label="Monto"><Input aria-label="Monto" type="number" min="0.01" value={montoMovimiento} onChange={event => setMontoMovimiento(event.target.value)}/></FormField><FormField label="Motivo / concepto"><Input aria-label="Motivo / concepto" value={concepto} onChange={event => setConcepto(event.target.value)} placeholder="Detalle obligatorio"/></FormField></div></Modal>
     <Modal open={modal === 'cerrar'} title="Cierre de caja" onClose={() => setModal(null)} footer={<div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={printCaja} icon={<Printer size={13}/>}>Imprimir</Button><Button variant="dark" className="flex-1" onClick={submitCierre} icon={<Lock size={13}/>}>Cerrar caja</Button></div>}><div className="space-y-3"><Alert variant="info">Esperado efectivo: <strong>{formatMoney(expectedCash)}</strong></Alert><FormField label="Efectivo contado"><Input aria-label="Efectivo contado" type="number" min="0" value={saldoContado} onChange={event => setSaldoContado(event.target.value)} placeholder="Ingrese el efectivo contado"/></FormField><FormField label="Observación"><Input aria-label="Observación de cierre" value={observacion} onChange={event => setObservacion(event.target.value)} placeholder="Obligatoria si existe diferencia"/></FormField></div></Modal>
