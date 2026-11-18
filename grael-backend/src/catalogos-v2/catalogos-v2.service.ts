@@ -6,7 +6,8 @@ import { Almacen, UbicacionAlmacen } from '../database/entities/almacen.entity'
 import { Vehiculo } from '../database/entities/flota.entity'
 import { Conductor } from '../database/entities/flota.entity'
 import { Tarifa } from '../database/entities/tarifa.entity'
-import { assertSedeAccess, effectiveSedeId, isGlobalRole } from '../auth/sede-scope'
+import { documentosVehiculo, licenciaRegistrada } from './flota-vigencia'
+import { assertAnySedeAccess, assertSedeAccess, effectiveSedeId, isGlobalRole } from '../auth/sede-scope'
 
 @Injectable()
 export class CatalogosV2Service {
@@ -109,6 +110,20 @@ export class CatalogosV2Service {
     assertSedeAccess(user, existing.sedeId, 'actualizar conductores')
     const entity = await this.conductorRepo.preload({ id, ...dto, sedeId: existing.sedeId })
     return this.conductorRepo.save(entity!)
+  }
+
+  async verificacionVehiculo(id: string, user: any) {
+    const vehicle = await this.vehiculoRepo.findOneBy({ id })
+    if (!vehicle) throw new NotFoundException('Vehículo no encontrado')
+    assertAnySedeAccess(user, [vehicle.sedeId], 'verificar el vehículo')
+    return { fuente: 'REGISTRO_INTERNO', placa: vehicle.placa, estado: vehicle.estado, documentos: documentosVehiculo(vehicle) }
+  }
+
+  async verificacionConductor(id: string, user: any) {
+    const driver = await this.conductorRepo.findOneBy({ id })
+    if (!driver) throw new NotFoundException('Conductor no encontrado')
+    assertAnySedeAccess(user, [driver.sedeId], 'verificar el conductor')
+    return { fuente: 'REGISTRO_INTERNO', estado: driver.estado, documentos: [licenciaRegistrada(driver)] }
   }
 
   tarifas(query: any, _user?: any) {

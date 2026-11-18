@@ -33,7 +33,7 @@ describe('ComprobantesService V8', () => {
   })
 
   it('anula como ANULADO_MOCK y registra auditoría dentro de la transacción', async () => {
-    const comprobante: any = { id: 'c-1', estado: EstadoComprobante.EMITIDO, sedeEmisionId: 'sede-cusco', tipo: TipoComprobante.BOLETA, serie: 'B001', numero: '12', ticket: { id: 't-1', sedeRecepcionId: 'sede-cusco', bultos: [] } }
+    const comprobante: any = { id: 'c-1', estado: EstadoComprobante.SIMULADO, sedeEmisionId: 'sede-cusco', tipo: TipoComprobante.BOLETA, serie: 'B001', numero: '12', ticket: { id: 't-1', sedeRecepcionId: 'sede-cusco', bultos: [] } }
     const manager: any = {
       findOne: jest.fn().mockResolvedValue(comprobante),
       create: jest.fn((_entity: any, value: any) => value),

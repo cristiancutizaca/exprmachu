@@ -13,6 +13,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule)
   app.use(helmet({ contentSecurityPolicy: false }))
   const rateBuckets = new Map<string, { count: number; resetAt: number }>()
+  let nextPurge = 0
   app.use((req: any, res: any, next: any) => {
     const path = String(req.path || '')
     const isLogin = path === '/api/v1/auth/login'
@@ -21,6 +22,10 @@ async function bootstrap() {
     const limit = isLogin ? 20 : 60
     const key = `${req.ip || 'unknown'}:${isLogin ? 'login' : 'tracking'}`
     const now = Date.now()
+    if (now >= nextPurge) {
+      for (const [bucketKey, value] of rateBuckets) if (value.resetAt <= now) rateBuckets.delete(bucketKey)
+      nextPurge = now + 60_000
+    }
     const bucket = rateBuckets.get(key)
     if (!bucket || bucket.resetAt <= now) rateBuckets.set(key, { count: 1, resetAt: now + 60_000 })
     else if (bucket.count >= limit) return res.status(429).json({ statusCode: 429, code: 'RATE_LIMITED', message: 'Demasiadas solicitudes; inténtelo nuevamente en un minuto', details: { retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000) } })
@@ -30,8 +35,9 @@ async function bootstrap() {
   app.use(requestContext)
   app.useGlobalFilters(new HttpExceptionJsonFilter())
 
+  const localOrigins = process.env.NODE_ENV === 'production' ? [] : ['http://localhost:3000', 'http://localhost:3003', 'http://localhost:3001', 'http://127.0.0.1:3003']
   app.enableCors({
-    origin: Array.from(new Set([process.env.FRONTEND_URL, 'http://localhost:3000', 'http://localhost:3003', 'http://localhost:3001', 'http://127.0.0.1:3003'].filter(Boolean))),
+    origin: Array.from(new Set([process.env.FRONTEND_URL, ...localOrigins].filter(Boolean))),
     credentials: true,
     methods: ['GET','POST','PATCH','PUT','DELETE','OPTIONS'],
   })
@@ -50,9 +56,9 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build()
-  SwaggerModule.setup('api', app, SwaggerModule.createDocument(app, doc), {
-    swaggerOptions: { persistAuthorization: true },
-  })
+  if (process.env.NODE_ENV !== 'production' || process.env.SWAGGER_ENABLED === 'true') {
+    SwaggerModule.setup('api', app, SwaggerModule.createDocument(app, doc))
+  }
 
   // Health check: confirma proceso y dependencia crítica de PostgreSQL sin exponer secretos.
   app.getHttpAdapter().get('/health', async (req: any, res: any) => {
@@ -67,6 +73,6 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001
   await app.listen(port)
-  logger.log(`🚀 http://localhost:${port}  |  Swagger: http://localhost:${port}/api`)
+  logger.log(`API disponible en el puerto ${port}`)
 }
 bootstrap()

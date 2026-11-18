@@ -5,7 +5,7 @@ import { Roles } from '../auth/roles.decorator'
 import { RolesGuard } from '../auth/roles.guard'
 import { RolUsuario } from '../database/entities/usuario.entity'
 import { GreService } from './gre.service'
-import { EmitCpeDto, EmitGreDto } from '../common/dto/secured-operations.dto'
+import { EmitMockDocumentoDto } from '../common/dto/secured-operations.dto'
 
 @ApiTags('GRE/CPE')
 @ApiBearerAuth()
@@ -16,7 +16,7 @@ export class GreController {
 
   @Post('emitir')
   @Roles(RolUsuario.ADMIN_SEDE, RolUsuario.CAJERO, RolUsuario.SUPERVISOR, RolUsuario.SUPERADMIN)
-  emitir(@Body() body: EmitGreDto | EmitCpeDto, @Request() req: any) {
+  emitir(@Body() body: EmitMockDocumentoDto, @Request() req: any) {
     return this.service.emitir(body, req.user)
   }
 

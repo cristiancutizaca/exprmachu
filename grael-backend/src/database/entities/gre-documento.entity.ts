@@ -5,7 +5,19 @@ import { Usuario } from './usuario.entity'
 import { Sede } from './sede.entity'
 import { Manifiesto } from './operaciones.entity'
 
-export enum EstadoGreDocumento { ACEPTADO_MOCK = 'ACEPTADO_MOCK', EMITIDO = 'EMITIDO', RECHAZADO = 'RECHAZADO', ANULADO = 'ANULADO' }
+export enum EstadoGreDocumento {
+  ACEPTADO_MOCK = 'ACEPTADO_MOCK',
+  EMITIDO = 'EMITIDO',
+  BORRADOR = 'BORRADOR',
+  ENVIANDO = 'ENVIANDO',
+  ENVIADO = 'ENVIADO',
+  ENVIO_INCIERTO = 'ENVIO_INCIERTO',
+  REINTENTABLE = 'REINTENTABLE',
+  ACEPTADO = 'ACEPTADO',
+  ACEPTADO_CON_OBSERVACIONES = 'ACEPTADO_CON_OBSERVACIONES',
+  RECHAZADO = 'RECHAZADO',
+  ANULADO = 'ANULADO',
+}
 
 @Entity('gre_documentos')
 @Index(['codigo'], { unique: true })
@@ -27,11 +39,20 @@ export class GreDocumento {
   @Column({ length: 20, nullable: true }) numero: string
   @Column({ length: 80, unique: true }) codigo: string
   @Column({ length: 20 }) proveedor: string
-  @Column({ type: 'enum', enum: EstadoGreDocumento, default: EstadoGreDocumento.ACEPTADO_MOCK }) estado: EstadoGreDocumento
+  @Column({ type: 'enum', enum: EstadoGreDocumento }) estado: EstadoGreDocumento
   @Column({ type: 'text' }) xml: string
   @Column({ length: 64, name: 'hash_xml', nullable: true }) hashXml: string
   @Column({ type: 'jsonb', name: 'actor_context', nullable: true }) actorContext: Record<string, unknown>
   @Column({ type: 'text', nullable: true }) observacion: string
+  @Column({ length: 12, name: 'ambiente_sunat', nullable: true }) ambienteSunat: 'TEST' | 'PRODUCTION' | null
+  @Column({ length: 11, name: 'ruc_emisor', nullable: true }) rucEmisor: string
+  @Column({ length: 2, name: 'tipo_tributario', nullable: true }) tipoTributario: string
+  @Column({ type: 'jsonb', name: 'datos_fiscales', nullable: true }) datosFiscales: unknown
+  @Column({ type: 'bytea', name: 'zip_envio', nullable: true, select: false }) zipEnvio: Buffer
+  @Column({ type: 'bytea', name: 'zip_cdr', nullable: true, select: false }) zipCdr: Buffer
+  @Column({ length: 36, name: 'ticket_sunat', nullable: true }) ticketSunat: string
+  @Column({ type: 'jsonb', name: 'respuesta_sunat', nullable: true }) respuestaSunat: { codigo: string; mensaje?: string; observaciones?: string[]; verificacion?: string }
+  @Column({ type: 'timestamptz', name: 'fecha_envio', nullable: true }) fechaEnvio: Date
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date
 }

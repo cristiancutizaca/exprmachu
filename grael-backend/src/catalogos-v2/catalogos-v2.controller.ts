@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Request, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Request, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/jwt.guard'
 import { Roles } from '../auth/roles.decorator'
@@ -45,6 +45,12 @@ export class CatalogosV2Controller {
   @Roles(RolUsuario.SUPERADMIN, RolUsuario.SUPERVISOR, RolUsuario.ADMIN_SEDE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch('conductores/:id') actualizarConductor(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.actualizarConductor(id, body, req.user) }
+
+  @Get('vehiculos/:id/verificacion')
+  verificarVehiculo(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) { return this.service.verificacionVehiculo(id, req.user) }
+
+  @Get('conductores/:id/verificacion')
+  verificarConductor(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) { return this.service.verificacionConductor(id, req.user) }
 
   @Get('tarifas') tarifas(@Query() query: any, @Request() req: any) { return this.service.tarifas(query, req.user) }
   @Roles(RolUsuario.SUPERADMIN, RolUsuario.SUPERVISOR)

@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller'
 import { AuthService }    from './auth.service'
 import { JwtStrategy }    from './jwt.strategy'
 import { Usuario }        from '../database/entities/usuario.entity'
+import { jwtSecret } from './jwt-secret'
 import { AuditLog }       from '../database/entities/audit-log.entity'
 
 @Module({
@@ -17,8 +18,7 @@ import { AuditLog }       from '../database/entities/audit-log.entity'
       imports: [ConfigModule],
       inject:  [ConfigService],
       useFactory: (cfg: ConfigService) => {
-        const secret = cfg.get<string>('JWT_SECRET')
-        if (!secret || secret === 'CAMBIAR_ESTO') throw new Error('JWT_SECRET es obligatorio para iniciar el backend')
+        const secret = jwtSecret()
         return { secret, signOptions: { expiresIn: cfg.get('JWT_EXPIRES_IN', '8h') } }
       },
     }),

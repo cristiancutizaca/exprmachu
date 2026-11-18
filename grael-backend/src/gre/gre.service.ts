@@ -6,14 +6,14 @@ import { Comprobante, Manifiesto, TipoComprobante } from '../database/entities/o
 import { Ticket } from '../database/entities/ticket.entity'
 import { EstadoGreDocumento, GreDocumento } from '../database/entities/gre-documento.entity'
 import { AuditLog } from '../database/entities/audit-log.entity'
-import { assertSedeAccess } from '../auth/sede-scope'
+import { assertAnySedeAccess } from '../auth/sede-scope'
 
 export type TipoDocumentoGre = 'GRE' | 'CPE'
 type GreActor = { sub?: string; rol?: string; sedeId?: string | null }
 
 @Injectable()
 export class GreService {
-  private readonly provider = (process.env.GRE_PROVIDER || 'MOCK').toUpperCase()
+  private readonly provider = 'MOCK'
 
   constructor(
     @InjectRepository(Ticket) private readonly ticketRepo: Repository<Ticket>,
@@ -24,7 +24,10 @@ export class GreService {
   ) {}
 
   async emitir(dto: { ticketId?: string; manifiestoId?: string; tipo?: TipoDocumentoGre; tipoComprobante?: TipoComprobante; serie?: string; observacion?: string }, actor: string | GreActor) {
-    if (this.provider === 'SUNAT') throw new ServiceUnavailableException('Proveedor SUNAT real pendiente: requiere credenciales, certificado digital, homologación y endpoint configurado')
+    const mode = (process.env.GRE_PROVIDER || (process.env.NODE_ENV === 'test' ? 'MOCK' : '')).toUpperCase()
+    if (mode !== 'MOCK' || process.env.NODE_ENV !== 'test') {
+      throw new ServiceUnavailableException('La emisión simulada está disponible únicamente en pruebas. Para GRE use /gre/borradores.')
+    }
     if (!dto.ticketId) throw new BadRequestException('ticketId es obligatorio')
     const actorContext: GreActor = typeof actor === 'string' ? { sub: actor } : { sub: actor?.sub, rol: actor?.rol, sedeId: actor?.sedeId || null }
     const usuarioId = actorContext.sub
@@ -52,7 +55,7 @@ export class GreService {
         // En un documento asociado a manifiesto, la sede documental es la sede origen del tramo.
         emissionSedeId = manifiesto.sedeOrigenId || emissionSedeId
       }
-      if (actorContext.sedeId) assertSedeAccess(actorContext, emissionSedeId, 'emitir documentos')
+      assertAnySedeAccess(actorContext, [emissionSedeId], 'emitir documentos')
 
       const defaultSerie = tipo === 'GRE' ? `G${emissionSedeId.replace(/-/g, '').slice(0, 5).toUpperCase()}` : `${comprobanteTipo === TipoComprobante.FACTURA ? 'F' : 'B'}${emissionSedeId.replace(/-/g, '').slice(0, 5).toUpperCase()}`
       const serie = (dto.serie || defaultSerie).replace(/[^0-9A-Z-]/gi, '').slice(0, 10)
@@ -66,14 +69,14 @@ export class GreService {
       const numero = String(sequence).padStart(8, '0')
       let comprobante: Comprobante | null = null
       if (tipo === 'CPE') {
-        comprobante = await manager.save(Comprobante, manager.create(Comprobante, { tipo: comprobanteTipo, serie, numero, ticket, cliente: ticket.remitente, subTotal, igv, total, estado: 'EMITIDO', usuario: { id: usuarioId } as any, sedeEmisionId: emissionSedeId }))
+        comprobante = await manager.save(Comprobante, manager.create(Comprobante, { tipo: comprobanteTipo, serie, numero, ticket, cliente: ticket.remitente, subTotal, igv, total, estado: 'SIMULADO', usuario: { id: usuarioId } as any, sedeEmisionId: emissionSedeId }))
       }
       const codigo = `${tipo}-${emissionSedeId}-${serie}-${numero}`
       const xml = this.buildXml({ tipo, codigo, ticket, comprobanteTipo, serie, numero, subTotal, igv, total, observacion: dto.observacion })
       const hashXml = createHash('sha256').update(xml, 'utf8').digest('hex')
-      const documento = await manager.save(GreDocumento, manager.create(GreDocumento, { ticketId: ticket.id, manifiestoId: dto.manifiestoId || null, sedeId: emissionSedeId || null, comprobanteId: comprobante?.id || null, usuarioId, tipo, codigo, serie, numero, proveedor: this.provider, estado: this.provider === 'MOCK' ? EstadoGreDocumento.ACEPTADO_MOCK : EstadoGreDocumento.EMITIDO, xml, hashXml, actorContext, observacion: dto.observacion || null }))
+      const documento = await manager.save(GreDocumento, manager.create(GreDocumento, { ticketId: ticket.id, manifiestoId: dto.manifiestoId || null, sedeId: emissionSedeId || null, comprobanteId: comprobante?.id || null, usuarioId, tipo, codigo, serie, numero, proveedor: this.provider, estado: EstadoGreDocumento.ACEPTADO_MOCK, xml, hashXml, actorContext, observacion: dto.observacion || null }))
       if (this.auditRepo) await manager.save(AuditLog, manager.create(AuditLog, { usuarioId, sedeId: emissionSedeId, accion: 'GRE_CREATED', entidad: 'GreDocumento', entidadId: documento.id, despues: { tipo, codigo, serie, numero, proveedor: this.provider, hashXml, manifiestoId: dto.manifiestoId || null }, metadata: { actorContext, mock: this.provider === 'MOCK' } }))
-      return { documento, comprobante, codigo, xml, hashXml, numero, serie, estado: this.provider === 'MOCK' ? EstadoGreDocumento.ACEPTADO_MOCK : EstadoGreDocumento.EMITIDO }
+      return { documento, comprobante, codigo, xml, hashXml, numero, serie, estado: EstadoGreDocumento.ACEPTADO_MOCK }
     })
 
     return { modo: 'MOCK', proveedor: this.provider, tipo, codigo: result.codigo, serie: result.serie, numero: result.numero, estado: result.estado, ticketId: ticket.id, ticket: ticket.numeroTicket, xml: result.xml, hashXml: result.hashXml, documentoId: result.documento.id, comprobanteId: result.comprobante?.id || null, advertencia: 'Documento simulado. La emisión legal requiere integración SUNAT, credenciales y certificado digital.' }
@@ -84,8 +87,9 @@ export class GreService {
     const documento = await this.greRepo.findOne({ where: { id }, relations: ['ticket', 'ticket.usuarioCreacion'] })
     if (!documento) throw new BadRequestException('Documento GRE/CPE no encontrado')
     const sedeId = documento.sedeId || documento.ticket?.sedeRecepcionId || documento.ticket?.usuarioCreacion?.sedeId
-    if (user) assertSedeAccess(user, sedeId, 'consultar documentos GRE/CPE')
-    return documento
+    assertAnySedeAccess(user, [sedeId], 'consultar documentos GRE/CPE')
+    const { ticket, ...documentoSinRelaciones } = documento
+    return { ...documentoSinRelaciones, ticket: ticket ? { id: ticket.id, numeroTicket: ticket.numeroTicket } : null }
   }
 
   private buildXml(input: any) {

@@ -20,13 +20,13 @@ describe('EntregasService V10', () => {
   function tx(manager: any) { dataSource.transaction.mockImplementation(async (callback: any) => callback(manager)) }
 
   it('rechaza crear entrega moderna para ticket sin bultos activos', async () => {
-    const manager: any = { findOne: jest.fn().mockResolvedValue({ id: 'ticket-1', bultos: [] }) }
+    const manager: any = { query: jest.fn(), findOne: jest.fn().mockResolvedValue({ id: 'ticket-1', bultos: [] }) }
     tx(manager)
     await expect(service.crear({ ticketId: 'ticket-1', tipo: TipoEntregaV2.AGENCIA }, 'u-cusco', operadorCusco)).rejects.toMatchObject({ response: expect.objectContaining({ code: 'DELIVERY_BULTO_REQUIRED' }) })
   })
 
   it('usa sedeActual del bulto y rechaza crear entrega cross-site', async () => {
-    const manager: any = { findOne: jest.fn().mockResolvedValueOnce({ id: 'ticket-1', bultos: [{ id: 'bulto-1', estado: EstadoBulto.EN_ALMACEN, sedeActualId: 'sede-lima' }] }).mockResolvedValueOnce({ id: 'bulto-1', ticketId: 'ticket-1', estado: EstadoBulto.EN_ALMACEN, sedeActualId: 'sede-lima' }) }
+    const manager: any = { query: jest.fn(), findOne: jest.fn().mockResolvedValueOnce({ id: 'ticket-1', bultos: [{ id: 'bulto-1', estado: EstadoBulto.EN_ALMACEN, sedeActualId: 'sede-lima' }] }).mockResolvedValueOnce({ id: 'bulto-1', ticketId: 'ticket-1', estado: EstadoBulto.EN_ALMACEN, sedeActualId: 'sede-lima' }) }
     tx(manager)
     await expect(service.crear({ ticketId: 'ticket-1', tipo: TipoEntregaV2.AGENCIA }, 'u-cusco', operadorCusco)).rejects.toBeInstanceOf(ForbiddenException)
   })

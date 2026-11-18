@@ -21,6 +21,11 @@ export class ClientesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('dni-ruc/:val') byDniRuc(@Param('val') val: string) { return this.service.byDniRuc(val) }
 
+  @Roles(RolUsuario.SUPERADMIN, RolUsuario.SUPERVISOR, RolUsuario.ADMIN_SEDE, RolUsuario.OPERADOR, RolUsuario.CAJERO)
+  @UseGuards(RolesGuard)
+  @Get('sunat/ruc/:ruc')
+  consultarRuc(@Param('ruc') ruc: string) { return this.service.consultarRuc(ruc) }
+
   @Roles(RolUsuario.SUPERADMIN, RolUsuario.SUPERVISOR, RolUsuario.ADMIN_SEDE, RolUsuario.OPERADOR, RolUsuario.CAJERO, RolUsuario.ALMACEN, RolUsuario.REPARTIDOR, RolUsuario.AUDITOR)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id') findById(@Param('id') id: string) { return this.service.findById(id) }

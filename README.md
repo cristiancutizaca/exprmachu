@@ -1,14 +1,18 @@
-# GRAEL — V10 (mantenimiento y correcciones)
+# Expreso Machupicchu
 
 GRAEL es un sistema de gestión logística multisede para recepción, custodia, almacén, despacho, transbordo, desembarque, entrega, caja y documentos electrónicos. Se mantiene el monolito existente (Next.js, NestJS y PostgreSQL). Se depuraron documentos históricos redundantes del árbol activo, pero **las migraciones y datos históricos deben conservarse**.
 
-## Estado de V10
+## Operación actual
+
+Consulte [la configuración, emisión y pruebas de SUNAT](docs/SUNAT_OPERACION.md). Las correcciones se desarrollaron sobre el monolito logístico existente. El backend requiere Node.js 24.9 o posterior.
+
+## Antecedentes de V10
 
 V10 incorpora hardening ejecutado del ledger financiero de Caja, aislamiento de pagos por sede, locks pesimistas, disposición estructurada de Incidencias, Entrega/POD idempotente, tracking por custodia, seed coherente con POD histórico, series documentales por sede para GRE/CPE MOCK, CORS local explícito, UX read-only por rol en Configuración, fixture automático de concurrencia y validación ampliada de integridad.
 
 > La evidencia disponible no permite declarar UAT operacional integral ni producción. GRE/CPE siguen siendo MOCK hasta contar con credenciales, certificado, homologación y CDR externos.
 
-## Stack inmutable
+## Stack de la línea base V10
 
 | Capa | Tecnología | Versión/nota |
 |---|---|---|
@@ -25,7 +29,7 @@ npm ci
 export DB_HOST=127.0.0.1 DB_PORT=5432 DB_USER=grael_user DB_PASS=grael_pass_2026 DB_NAME=grael_v10_db
 npm run migration:run
 npm run seed
-JWT_SECRET=change-me PORT=3002 npm run start:prod
+JWT_SECRET=solo-validacion-local PORT=3002 npm run start:prod
 ```
 
 En otra terminal:

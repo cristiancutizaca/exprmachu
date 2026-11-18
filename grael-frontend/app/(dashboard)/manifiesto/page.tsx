@@ -10,7 +10,9 @@ import {
   Button, Card, PageHeader, FormField, Input, Select,
   Modal, StatusBadge, EmptyState, Alert
 } from '@/components/ui'
-import { TICKETS_DB, DESTINOS_LIST } from '@/lib/data'
+import Link from 'next/link'
+import { abrirArchivo, mensajeApi } from '@/lib/archivos'
+import { TICKETS_DB } from '@/lib/data'
 import { formatMoney } from '@/lib/utils'
 import { useToggle } from '@/hooks'
 import { manifiestoApi, destinosApi, catalogosV2Api } from '@/lib/api'
@@ -29,7 +31,7 @@ interface Manifiesto {
 
 const ticketsCUS = TICKETS_DB.filter(t => t.destino.nombre === 'CUSCO' && !t.anulado)
 
-function formLabel(id: string, destinos: Array<{ id: string; nombre?: string; codigo?: string }>) {
+function formLabel(id: string, destinos: Array<{ id: string; nombre?: string; codigo?: string; sedeId?: string }>) {
   return destinos.find(item => item.id === id)?.nombre || destinos.find(item => item.id === id)?.codigo || id
 }
 
@@ -73,18 +75,17 @@ const AVANZAR: Record<EstadoManiesto,{next?:EstadoManiesto;label?:string;color?:
 }
 
 // ─── Modal crear manifiesto ───────────────────────────────────────────────────
-function ModalCrear({ onCrear, onClose, destinos, sedeOrigenId, vehiculos, conductores, isDemoMode }: { onCrear: (data: any) => Promise<void>; onClose: () => void; destinos: Array<{ id: string; nombre?: string; codigo?: string }>; sedeOrigenId?: string; vehiculos: FlotaOption[]; conductores: FlotaOption[]; isDemoMode: boolean }) {
+function ModalCrear({ onCrear, onClose, destinos, sedeOrigenId, vehiculos, conductores, isDemoMode }: { onCrear: (data: any) => Promise<void>; onClose: () => void; destinos: Array<{ id: string; nombre?: string; codigo?: string; sedeId?: string }>; sedeOrigenId?: string; vehiculos: FlotaOption[]; conductores: FlotaOption[]; isDemoMode: boolean }) {
   const [form, setForm] = useState({
-    origen:'PIURA', destino:'CUSCO', programacion:'PIU-CUS-0600',
+    origen:isDemoMode ? 'PIURA' : '', destino:isDemoMode ? 'CUSCO' : '', programacion:'PIU-CUS-0600', automatico: !isDemoMode,
     chofer:'', placa:'', vehiculoId:'', conductorId:'', fecha: hoyPeru()
   })
-  const DESTS = ['CUSCO','LIMA','AREQUIPA','PIURA','PUNO','QUILLABANBA']
   const PROGS = [
     'PIU-CUS-0600','LIM-CUS-0900','AQP-CUS-0800','PUN-CUS-0700',
     'CUS-LIM-0800','CUS-AQP-1000','CUS-PIU-2200',
   ]
   const fallbackDestinos: Array<{ id: string; nombre?: string; codigo?: string }> = ['CUSCO','LIMA','AREQUIPA','PIURA','PUNO','QUILLABAMBA'].map(nombre => ({ id: nombre, nombre }))
-  const destinationOptions: Array<{ id: string; nombre?: string; codigo?: string }> = destinos.length ? destinos : fallbackDestinos
+  const destinationOptions: Array<{ id: string; nombre?: string; codigo?: string; sedeId?: string }> = isDemoMode ? fallbackDestinos : destinos
 
   const handleCrear = async () => {
     if (!form.origen || !form.destino || form.origen === form.destino) { toast.error('Complete una ruta válida'); return }
@@ -92,12 +93,14 @@ function ModalCrear({ onCrear, onClose, destinos, sedeOrigenId, vehiculos, condu
     const destino = destinationOptions.find(item => (item.nombre || item.codigo || '').toUpperCase() === form.destino.toUpperCase())
     if (!origen?.id || !destino?.id) { toast.error('No se encontraron los destinos en el API'); return }
     if (!isDemoMode && (!form.vehiculoId || !form.conductorId)) { toast.error('Seleccione vehículo y conductor activos'); return }
-    await onCrear({
-      origenId: origen.id, destinoId: destino.id, sedeOrigenId, sedeDestinoId: sedeOrigenId, fechaViaje: form.fecha,
+    try {
+      await onCrear({
+      origenId: origen.id, destinoId: destino.id, sedeOrigenId: origen.sedeId || sedeOrigenId, sedeDestinoId: destino.sedeId, fechaViaje: form.fecha, seleccionAutomatica: !isDemoMode && form.automatico,
       vehiculoId: form.vehiculoId || undefined, conductorId: form.conductorId || undefined,
       chofer: isDemoMode ? (form.chofer || undefined) : undefined, placa: isDemoMode ? (form.placa || undefined) : undefined,
     })
-    onClose()
+      onClose()
+    } catch { /* El formulario conserva los datos para corregirlos. */ }
   }
 
   return (
@@ -114,19 +117,19 @@ function ModalCrear({ onCrear, onClose, destinos, sedeOrigenId, vehiculos, condu
         <FormField label="Fecha">
           <Input type="date" value={form.fecha} onChange={e=>setForm(f=>({...f,fecha:e.target.value}))}/>
         </FormField>
-        <FormField label="Programación">
+        {isDemoMode && <FormField label="Programación">
           <Select value={form.programacion} onChange={e=>setForm(f=>({...f,programacion:e.target.value}))}>
             {PROGS.map(p=><option key={p}>{p}</option>)}
           </Select>
-        </FormField>
+        </FormField>}
         <FormField label="Origen">
           <Select value={form.origen} onChange={e=>setForm(f=>({...f,origen:e.target.value}))}>
-            {destinationOptions.map(d=><option key={d.id}>{d.nombre || d.codigo}</option>)}
+            {!isDemoMode && <option value="">Seleccione</option>}{destinationOptions.map(d=><option key={d.id}>{d.nombre || d.codigo}</option>)}
           </Select>
         </FormField>
         <FormField label="Destino">
           <Select value={form.destino} onChange={e=>setForm(f=>({...f,destino:e.target.value}))}>
-            {destinationOptions.map(d=><option key={d.id}>{d.nombre || d.codigo}</option>)}
+            {!isDemoMode && <option value="">Seleccione</option>}{destinationOptions.map(d=><option key={d.id}>{d.nombre || d.codigo}</option>)}
           </Select>
         </FormField>
         {isDemoMode ? <>
@@ -151,12 +154,22 @@ function ModalCrear({ onCrear, onClose, destinos, sedeOrigenId, vehiculos, condu
           </FormField>
         </>}
       </div>
+      {!isDemoMode && <div className="mt-3 space-y-2">
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.automatico} onChange={event => setForm(previous => ({ ...previous, automatico: event.target.checked }))}/> Incluir tickets disponibles de la ruta y fecha</label>
+        <div className="flex flex-wrap gap-3 text-xs">
+          <Link href="https://licencias.mtc.gob.pe/" target="_blank" rel="noreferrer" className="text-sky-700 underline">Consultar licencia en el MTC</Link>
+          <Link href="https://portal.mtc.gob.pe/reportedgtt/form/frmconsultaplacaitv.aspx" target="_blank" rel="noreferrer" className="text-sky-700 underline">Consultar inspección vehicular</Link>
+        </div>
+      </div>}
     </Modal>
   )
 }
 
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 export default function ManifiestoPage() {
+  const pdf = (manifest: { id: string; codigo: string }, print = false) =>
+    abrirArchivo(() => manifiestoApi.pdf(manifest.id, print), `${manifest.codigo}.pdf`, print)
+      .catch(error => toast.error(mensajeApi(error, 'No se pudo abrir el manifiesto')))
   const token = useAuthStore(s => s.token)
   const user = useAuthStore(s => s.user)
   const isDemoMode = !token || token.startsWith('demo-')
@@ -378,7 +391,7 @@ export default function ManifiestoPage() {
                     title="Ver detalle">
                     <Eye size={13}/>
                   </button>
-                  <button onClick={() => toast(`Descargando ${m.codigo}...`)}
+                  <button aria-label="Descargar manifiesto PDF" disabled={isDemoMode} onClick={() => pdf(m)}
                     className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors">
                     <Download size={13}/>
                   </button>
@@ -399,7 +412,7 @@ export default function ManifiestoPage() {
                         <p className="text-[11px] font-semibold text-gray-500">
                           {m.tickets.length} ticket(s) — Total: {formatMoney(subtotal)}
                         </p>
-                        <button onClick={() => toast(`Imprimiendo manifiesto ${m.codigo}...`)}
+                        <button disabled={isDemoMode} onClick={() => pdf(m, true)}
                           className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-navy-500 transition-colors">
                           <Printer size={12}/> Imprimir
                         </button>
@@ -488,12 +501,13 @@ export default function ManifiestoPage() {
           footer={
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" icon={<Printer size={13}/>}
-                onClick={()=>toast('Imprimiendo...')}>Imprimir</Button>
+                disabled={isDemoMode} onClick={() => pdf(verDetalle, true)}>Imprimir</Button>
               <Button variant="ghost" onClick={() => setVerDetalle(null)}>Cerrar</Button>
             </div>
           }>
           <div className="space-y-3 text-[12px]">
             <StatusBadge estado={verDetalle.estado}/>
+            {!isDemoMode && <Link href={`/guias?manifiestoId=${verDetalle.id}`} className="block text-sky-700 underline">Guías de este manifiesto</Link>}
             <div className="grid gap-2 rounded border border-blue-100 bg-blue-50/60 p-3">
               <p className="text-[11px] font-semibold text-navy-500">Gestión operativa</p>
               <div className="flex gap-2">

@@ -31,6 +31,7 @@ const NAV: NavGroup[] = [
     { href:'/entregas',    label:'Entregas y POD',      Icon:Truck,          allowedRoles:['ADMIN_SEDE','OPERADOR','SUPERVISOR','REPARTIDOR','SUPERADMIN'] },
   ]},
   { group:'Administración', items: [
+    { href:'/guias', label:'Guías de remisión', Icon:FileText, allowedRoles:['ADMIN_SEDE','OPERADOR','CAJERO','ALMACEN','SUPERVISOR','AUDITOR','SUPERADMIN'] },
     { href:'/comprobantes',         label:'Comprobantes',         Icon:FileText,        allowedRoles:['ADMIN_SEDE','CAJERO','SUPERVISOR','AUDITOR','SUPERADMIN'] },
     { href:'/bolsa',                label:'Bolsa',                Icon:Briefcase,       allowedRoles:['ADMIN_SEDE','SUPERVISOR','SUPERADMIN'] },
     { href:'/detraccion',           label:'Detracción',           Icon:StickyNote,      allowedRoles:['ADMIN_SEDE','CAJERO','SUPERVISOR','SUPERADMIN'] },
