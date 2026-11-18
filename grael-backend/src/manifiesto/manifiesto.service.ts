@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource, EntityManager, Repository } from 'typeorm'
 import { Manifiesto, EstadoManifiesto } from '../database/entities/operaciones.entity'
 import { Destino } from '../database/entities/destino.entity'
 import { Ticket, EstadoTicket } from '../database/entities/ticket.entity'
@@ -8,6 +8,9 @@ import { Bulto, EstadoBulto } from '../database/entities/bulto.entity'
 import { Vehiculo, EstadoVehiculo, Conductor, EstadoConductor } from '../database/entities/flota.entity'
 import { Usuario } from '../database/entities/usuario.entity'
 import { assertSedeAccess, assertAnySedeAccess, assertManifestOriginAccess, assertManifestDestinationAccess, isGlobalRole } from '../auth/sede-scope'
+import { documentosVehiculo, licenciaRegistrada } from '../catalogos-v2/flota-vigencia'
+import { representationPdf } from '../sunat/representation-pdf'
+import { hoyPeru, limitesDiaPeru } from '../common/peru-time'
 import { TrackingEvento, TipoTrackingEvento } from '../database/entities/tracking-evento.entity'
 import { DesembarqueBulto, DesembarqueSesion, EstadoDesembarqueBulto, EstadoDesembarqueSesion } from '../database/entities/desembarque-fisico.entity'
 
@@ -56,14 +59,37 @@ export class ManifiestoService {
     return manifest
   }
 
-  private async validarFlota(manager: any, dto: any, sedeId?: string) {
+  async pdf(id: string, user: any) {
+    const manifest = await this.findById(id, user)
+    return representationPdf({
+      title: 'Manifiesto de carga', number: manifest.codigo, state: 'DOCUMENTO OPERATIVO · ' + manifest.estado,
+      sections: [
+        { title: 'Viaje', lines: [
+          [manifest.origen?.nombre, manifest.destino?.nombre].filter(Boolean).join(' → '),
+          `Fecha   ${String(manifest.fechaViaje).slice(0, 10)}`,
+          `Vehículo   ${manifest.vehiculo?.placa || manifest.placa || 'Por asignar'}`,
+          `Conductor   ${manifest.conductor ? [manifest.conductor.nombres, manifest.conductor.apellidos].join(' ') : manifest.chofer || 'Por asignar'}`,
+        ] },
+        { title: `Carga · ${manifest.tickets?.length || 0} tickets`, lines: (manifest.tickets || []).flatMap(ticket => [
+          `${ticket.numeroTicket} · ${ticket.remitente?.razonSocial || 'Sin remitente'} → ${ticket.destinatario?.razonSocial || 'Sin destinatario'}`,
+          `${(ticket.bultos || []).filter(bulto => bulto.estado !== EstadoBulto.ANULADO).length} bultos · ${ticket.estado}`,
+          ...(ticket.mercaderias || []).map(item => `${item.descripcion || item.tipo} · ${item.cantidad} · ${item.pesoTotal} kg`),
+        ]) },
+      ],
+    }).then(bytes => ({ bytes, name: `${manifest.codigo.replace(/[^A-Z0-9-]/gi, '')}.pdf` }))
+  }
+
+  private async validarFlota(manager: EntityManager, dto: any, sedeId?: string, fecha = hoyPeru()) {
     const vehiculo = dto.vehiculoId ? await manager.findOneBy(Vehiculo, { id: dto.vehiculoId }) : null
     const conductor = dto.conductorId ? await manager.findOneBy(Conductor, { id: dto.conductorId }) : null
     if (dto.vehiculoId && (!vehiculo || vehiculo.estado !== EstadoVehiculo.ACTIVO)) throw new BadRequestException('El vehículo no está activo o no existe')
     if (dto.conductorId && (!conductor || conductor.estado !== EstadoConductor.ACTIVO)) throw new BadRequestException('El conductor no está activo o no existe')
     if (sedeId && vehiculo?.sedeId && vehiculo.sedeId !== sedeId) throw new BadRequestException({ statusCode: 400, code: 'FLEET_WRONG_SITE', message: 'El vehículo no pertenece a la sede de origen del manifiesto', details: { vehiculoSedeId: vehiculo.sedeId, manifiestoSedeId: sedeId } })
     if (sedeId && conductor?.sedeId && conductor.sedeId !== sedeId) throw new BadRequestException({ statusCode: 400, code: 'FLEET_WRONG_SITE', message: 'El conductor no pertenece a la sede de origen del manifiesto', details: { conductorSedeId: conductor.sedeId, manifiestoSedeId: sedeId } })
-    if (conductor?.fechaVencimientoLicencia && new Date(conductor.fechaVencimientoLicencia) < new Date()) throw new BadRequestException('La licencia del conductor está vencida')
+    if (conductor && licenciaRegistrada(conductor, fecha).estado === 'VENCIDO') throw new BadRequestException('La licencia vence antes de la fecha del traslado')
+    if (vehiculo && documentosVehiculo(vehiculo, fecha).some(documento => documento.estado === 'VENCIDO')) {
+      throw new BadRequestException('El vehículo tiene documentación vencida para la fecha del traslado')
+    }
     return { vehiculo, conductor }
   }
 
@@ -80,6 +106,28 @@ export class ManifiestoService {
     if (conflicts.length > 0) throw new BadRequestException({ statusCode: 409, code: 'TICKET_ALREADY_IN_ACTIVE_MANIFEST', message: 'Uno o más tickets ya pertenecen a un manifiesto activo', details: { ticketIds: [...new Set(conflicts.map((item: any) => item.ticketId))] } })
   }
 
+  private async ticketsDisponibles(manager: EntityManager, origenId: string, destinoId: string, sedeId: string, fecha: string, programacionId?: string) {
+    const rows = await manager.query(`
+      SELECT t.id FROM tickets t
+      WHERE t.origen_id = $1 AND t.destino_id = $2 AND t.sede_recepcion_id = $3
+        AND t.fecha_viaje = $4 AND NOT t.anulado AND t.estado = 'PENDIENTE'
+        AND ($5::uuid IS NULL OR t.programacion_id = $5)
+        AND EXISTS (SELECT 1 FROM bultos b WHERE b.ticket_id = t.id AND b.estado <> 'ANULADO')
+        AND NOT EXISTS (
+          SELECT 1 FROM bultos b WHERE b.ticket_id = t.id AND b.estado <> 'ANULADO'
+            AND (b.sede_actual_id IS DISTINCT FROM $3 OR b.estado NOT IN ('RECEPCIONADO','EN_ALMACEN','PROGRAMADO'))
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM manifiesto_tickets mt JOIN manifiestos m ON m.id = mt.manifiesto_id
+          WHERE mt.ticket_id = t.id AND m.estado IN ('ABIERTO','EN_RUTA','LLEGADO')
+        )
+      ORDER BY t.id LIMIT 501 FOR UPDATE OF t
+    `, [origenId, destinoId, sedeId, fecha, programacionId || null])
+    if (!rows.length) throw new BadRequestException('No hay tickets disponibles para esa ruta, sede y fecha')
+    if (rows.length > 500) throw new BadRequestException('Hay más de 500 tickets. Seleccione una programación o un lote de tickets.')
+    return rows.map(row => row.id as string)
+  }
+
   async crear(dto: any, usuarioId?: string, user?: any) {
     return this.dataSource.transaction(async manager => {
       const origen = await manager.findOne(Destino, { where: { id: dto.origenId }, relations: ['sede'] })
@@ -87,15 +135,23 @@ export class ManifiestoService {
       if (!origen || !destino) throw new NotFoundException('Origen o destino no encontrado')
       const sedeOrigenId = dto.sedeOrigenId || origen.sedeId || user?.sedeId
       const sedeDestinoId = dto.sedeDestinoId || destino.sedeId
-      assertManifestOriginAccess(user, sedeOrigenId, 'crear manifiestos en el origen')
+      assertAnySedeAccess(user, [sedeOrigenId], 'crear manifiestos en el origen')
+      if (!sedeOrigenId || !sedeDestinoId || origen.id === destino.id) throw new BadRequestException('Seleccione una ruta con sus sedes de origen y destino')
+      if (origen.sedeId && origen.sedeId !== sedeOrigenId) throw new BadRequestException('La sede de origen no corresponde a la ruta')
       if (dto.sedeDestinoId && destino.sedeId && dto.sedeDestinoId !== destino.sedeId) throw new BadRequestException({ statusCode: 400, code: 'DESTINATION_SITE_MISMATCH', message: 'La sede destino no corresponde al destino seleccionado', details: { destinoId: destino.id, sedeDestinoId: dto.sedeDestinoId, destinoSedeId: destino.sedeId } })
-      const { vehiculo, conductor } = await this.validarFlota(manager, dto, sedeOrigenId)
+      const fecha = dto.fechaViaje?.slice(0, 10) || hoyPeru()
+      limitesDiaPeru(fecha)
+      const { vehiculo, conductor } = await this.validarFlota(manager, dto, sedeOrigenId, fecha)
       const usuario = usuarioId ? await manager.findOneBy(Usuario, { id: usuarioId }) : null
       await manager.query(`SELECT pg_advisory_xact_lock(hashtext('grael.manifiesto.correlativo'))`)
-      const year = new Date().getFullYear()
+      const year = hoyPeru().slice(0, 4)
       const result = await manager.query(`SELECT COALESCE(MAX(CAST(split_part(codigo, '-', 3) AS INTEGER)), 0) AS max FROM manifiestos WHERE codigo LIKE $1`, [`MAN-${year}-%`])
       const next = Number(result?.[0]?.max || 0) + 1
-      const ticketIds: string[] = dto.ticketIds?.length ? [...new Set<string>(dto.ticketIds as string[])] : []
+      if (dto.seleccionAutomatica && dto.ticketIds?.length) throw new BadRequestException('Elija selección automática o manual')
+      const ticketIds: string[] = dto.seleccionAutomatica
+        ? await this.ticketsDisponibles(manager, origen.id, destino.id, sedeOrigenId, fecha, dto.programacionId)
+        : [...new Set<string>(dto.ticketIds || [])]
+      if (ticketIds.length && !dto.seleccionAutomatica) await manager.query('SELECT id FROM tickets WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE', [ticketIds])
       const tickets = ticketIds.length ? await manager.findBy(Ticket, ticketIds.map((id: string) => ({ id }))) : []
       if (ticketIds.length && tickets.length !== ticketIds.length) throw new BadRequestException('Uno o más tickets no existen')
       if (tickets.some(ticket => ticket.anulado)) throw new BadRequestException('No se puede agregar un ticket anulado al manifiesto')
@@ -104,7 +160,7 @@ export class ManifiestoService {
       await this.assertTicketsNotInActiveManifest(manager, ticketIds)
       const manifest = manager.create(Manifiesto, {
         codigo: `MAN-${year}-${String(next).padStart(4, '0')}`,
-        origen, destino, fechaViaje: new Date(dto.fechaViaje || new Date()),
+        origen, destino, fechaViaje: limitesDiaPeru(fecha).inicio,
         chofer: dto.chofer, placa: dto.placa, estado: EstadoManifiesto.ABIERTO,
         programacionId: dto.programacionId, vehiculo, vehiculoId: vehiculo?.id,
         conductor, conductorId: conductor?.id, usuario, tickets,
@@ -117,6 +173,8 @@ export class ManifiestoService {
 
   async agregarTickets(id: string, ticketIds: string[], user?: any) {
     return this.dataSource.transaction(async manager => {
+      await manager.query('SELECT id FROM manifiestos WHERE id = $1 FOR UPDATE', [id])
+      await manager.query('SELECT id FROM tickets WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE', [ticketIds])
       const manifest = await manager.findOne(Manifiesto, { where: { id }, relations: ['tickets', 'origen', 'destino'] })
       if (!manifest) throw new NotFoundException('Manifiesto no encontrado')
       assertManifestOriginAccess(user, manifest.sedeOrigenId, 'agregar tickets a manifiestos')
@@ -150,6 +208,7 @@ export class ManifiestoService {
 
   async despachar(id: string, usuarioId?: string, user?: any) {
     return this.dataSource.transaction(async manager => {
+      await manager.query('SELECT id FROM manifiestos WHERE id = $1 FOR UPDATE', [id])
       const manifest = await manager.findOne(Manifiesto, { where: { id }, relations: ['tickets'] })
       if (!manifest) throw new NotFoundException('Manifiesto no encontrado')
       assertManifestOriginAccess(user, manifest.sedeOrigenId, 'despachar manifiestos')
@@ -160,9 +219,7 @@ export class ManifiestoService {
       for (const ticket of manifest.tickets) allBultos.push(...await manager.findBy(Bulto, { ticketId: ticket.id }))
       const loadedBultos = allBultos.filter(bulto => bulto.estado === EstadoBulto.CARGADO)
       if (allBultos.length === 0 || loadedBultos.length !== allBultos.length) throw new BadRequestException({ statusCode: 409, code: 'MANIFEST_INCOMPLETE', message: 'Existen bultos pendientes de cargar; no se puede despachar el manifiesto', details: { expected: allBultos.length, loaded: loadedBultos.length, pending: allBultos.length - loadedBultos.length } })
-      const vehiculo = await manager.findOneByOrFail(Vehiculo, { id: manifest.vehiculoId })
-      const conductor = await manager.findOneByOrFail(Conductor, { id: manifest.conductorId })
-      if (vehiculo.estado !== EstadoVehiculo.ACTIVO || conductor.estado !== EstadoConductor.ACTIVO) throw new BadRequestException('La flota asignada no está activa')
+      const { vehiculo, conductor } = await this.validarFlota(manager, manifest, manifest.sedeOrigenId)
       const usuario = usuarioId ? await manager.findOneBy(Usuario, { id: usuarioId }) : null
       manifest.estado = EstadoManifiesto.EN_RUTA
       manifest.fechaSalida = new Date()

@@ -297,8 +297,8 @@ export class Comprobante {
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   total: number
 
-  @Column({ default: 'EMITIDO' })
-  estado: string  // EMITIDO | ANULADO
+  @Column({ default: 'INTERNO' })
+  estado: string
 
   @ManyToOne(() => Usuario, { nullable: true })
   @JoinColumn({ name: 'usuario_id' })

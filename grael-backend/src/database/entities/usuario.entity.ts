@@ -25,7 +25,7 @@ export class Usuario {
   @Column({ length: 60 })
   username: string
 
-  @Column({ length: 120 })
+  @Column({ length: 120, select: false })
   password: string
 
   @Column({ length: 80, name: 'nombre' })

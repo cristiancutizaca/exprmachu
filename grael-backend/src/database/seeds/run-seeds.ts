@@ -19,6 +19,7 @@ import { TrackingEvento, TipoTrackingEvento } from '../entities/tracking-evento.
 import { Entrega, EstadoEntrega, TipoEntregaV2 } from '../entities/entrega.entity'
 
 async function runSeeds() {
+  if (process.env.NODE_ENV === 'production') throw new Error('El seed de demostración requiere una base de pruebas')
   await AppDataSource.initialize()
   console.log('📦 Conectado a PostgreSQL. Iniciando seeds...\n')
 

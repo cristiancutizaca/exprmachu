@@ -92,7 +92,7 @@ export default function TransbordoPage() {
   const user = useAuthStore(s => s.user)
   const isDemoMode = !token || token.startsWith('demo-')
   const [items, setItems] = useState<UiTransbordo[]>(DEMO_ITEMS)
-  const [destinos, setDestinos] = useState<Destino[]>(DESTINOS_LIST)
+  const [destinos, setDestinos] = useState<Destino[]>(isDemoMode ? DESTINOS_LIST : [])
   const [showCrear, setShowCrear] = useState(false)
   const [detalle, setDetalle] = useState<UiTransbordo | null>(null)
   const [loading, setLoading] = useState(false)

@@ -5,7 +5,8 @@ import { Repository } from 'typeorm'
 import * as bcrypt from 'bcryptjs'
 import { Usuario, RolUsuario } from '../database/entities/usuario.entity'
 import { AuditLog } from '../database/entities/audit-log.entity'
-import { assertSedeAccess } from './sede-scope'
+import { assertAnySedeAccess, isGlobalRole } from './sede-scope'
+import { assertCanAssignRole } from './role-policy'
 
 @Injectable()
 export class AuthService {
@@ -18,10 +19,10 @@ export class AuthService {
   ) {}
 
   async login(username: string, password: string) {
-    const user = await this.usuarioRepo.findOne({ where: { username, activo: true } })
-    if (!user) throw new UnauthorizedException('Usuario no encontrado o inactivo')
-    const valid = await bcrypt.compare(password, user.password)
-    if (!valid) throw new UnauthorizedException('Contraseña incorrecta')
+    const user = await this.usuarioRepo.createQueryBuilder('u').addSelect('u.password').where('u.username = :username AND u.activo', { username }).getOne()
+    if (!user || !await bcrypt.compare(password, user.password) || !isGlobalRole(user) && !user.sedeId) {
+      throw new UnauthorizedException('Usuario o contraseña inválidos')
+    }
     const payload = { sub: user.id, username: user.username, rol: user.rol, sede: user.sede, sedeId: user.sedeId }
     return {
       access_token: this.jwtService.sign(payload),
@@ -38,7 +39,7 @@ export class AuthService {
 
   async changePassword(userId: string, passwordActual: string, passwordNueva: string) {
     if (!passwordNueva || passwordNueva.length < 8) throw new BadRequestException('La nueva contraseña debe tener al menos 8 caracteres')
-    const user = await this.usuarioRepo.findOneBy({ id: userId, activo: true })
+    const user = await this.usuarioRepo.createQueryBuilder('u').addSelect('u.password').where('u.id = :userId AND u.activo', { userId }).getOne()
     if (!user) throw new UnauthorizedException('Usuario no encontrado o inactivo')
     if (!await bcrypt.compare(passwordActual || '', user.password)) throw new BadRequestException({ statusCode: 400, code: 'CURRENT_PASSWORD_INVALID', message: 'La contraseña actual es incorrecta', details: {} })
     user.password = await bcrypt.hash(passwordNueva, 10)
@@ -52,7 +53,8 @@ export class AuthService {
     if (!passwordNueva || passwordNueva.length < 8) throw new BadRequestException('La nueva contraseña debe tener al menos 8 caracteres')
     const target = await this.usuarioRepo.findOneBy({ id: targetId, activo: true })
     if (!target) throw new NotFoundException('Usuario objetivo no encontrado o inactivo')
-    assertSedeAccess(actor, target.sedeId, 'restablecer la contraseña')
+    assertCanAssignRole(actor.rol, target.rol)
+    assertAnySedeAccess(actor, [target.sedeId], 'restablecer la contraseña')
     target.password = await bcrypt.hash(passwordNueva, 10)
     await this.usuarioRepo.save(target)
     await this.auditRepo.save(this.auditRepo.create({ usuarioId: actor.sub, accion: 'PASSWORD_RESET', entidad: 'Usuario', entidadId: target.id, metadata: { targetUsername: target.username, targetRole: target.rol } }))

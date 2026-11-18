@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer'
-import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID, MaxLength, ArrayMaxSize } from 'class-validator'
+import { Transform, Type } from 'class-transformer'
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsOptional, IsString, IsUUID, MaxLength, ArrayMaxSize } from 'class-validator'
 import { EstadoManifiesto } from '../../database/entities/operaciones.entity'
 
 export class ManifiestoQueryDto {
@@ -12,12 +12,13 @@ export class ManifiestoQueryDto {
 export class CreateManifiestoDto {
   @IsUUID() origenId: string
   @IsUUID() destinoId: string
-  @IsUUID() sedeOrigenId: string
-  @IsUUID() sedeDestinoId: string
+  @IsOptional() @IsUUID() sedeOrigenId: string
+  @IsOptional() @IsUUID() sedeDestinoId: string
   @IsOptional() @IsDateString() fechaViaje?: string
   @IsOptional() @IsUUID() programacionId?: string
   @IsOptional() @IsUUID() vehiculoId?: string
   @IsOptional() @IsUUID() conductorId?: string
+  @IsOptional() @Transform(({ obj, key }) => obj[key]) @IsBoolean() seleccionAutomatica?: boolean
   @IsOptional() @IsArray() @ArrayMaxSize(500) @IsUUID('4', { each: true }) ticketIds?: string[]
   @IsOptional() @IsString() @MaxLength(100) chofer?: string
   @IsOptional() @IsString() @MaxLength(30) placa?: string

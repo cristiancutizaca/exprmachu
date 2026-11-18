@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Request, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Request, StreamableFile, UseGuards } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { ManifiestoService } from './manifiesto.service'
 import { JwtAuthGuard } from '../auth/jwt.guard'
@@ -21,6 +21,14 @@ export class ManifiestoController {
   @Roles(RolUsuario.SUPERADMIN, RolUsuario.SUPERVISOR, RolUsuario.ADMIN_SEDE, RolUsuario.OPERADOR, RolUsuario.ALMACEN, RolUsuario.REPARTIDOR, RolUsuario.AUDITOR)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id') findById(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) { return this.service.findById(id, req.user) }
+
+  @Roles(RolUsuario.SUPERADMIN, RolUsuario.SUPERVISOR, RolUsuario.ADMIN_SEDE, RolUsuario.OPERADOR, RolUsuario.ALMACEN, RolUsuario.REPARTIDOR, RolUsuario.AUDITOR)
+  @UseGuards(RolesGuard)
+  @Get(':id/pdf')
+  async pdf(@Param('id', ParseUUIDPipe) id: string, @Request() req: any, @Query('inline') inline?: string) {
+    const { bytes, name } = await this.service.pdf(id, req.user)
+    return new StreamableFile(bytes, { type: 'application/pdf', disposition: `${inline === '1' ? 'inline' : 'attachment'}; filename="${name}"` })
+  }
 
   @Roles(RolUsuario.ADMIN_SEDE, RolUsuario.OPERADOR, RolUsuario.SUPERVISOR, RolUsuario.SUPERADMIN)
   @UseGuards(JwtAuthGuard, RolesGuard)

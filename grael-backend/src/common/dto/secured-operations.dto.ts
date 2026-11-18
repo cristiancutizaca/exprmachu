@@ -91,18 +91,12 @@ export class DeliveryAttemptV9Dto {
   @IsOptional() @IsIn(['CLIENTE_AUSENTE', 'DIRECCION_INCORRECTA', 'RECHAZADO', 'NO_UBICADO', 'OTRO']) motivo?: string
 }
 
-export class EmitGreDto {
+export class EmitMockDocumentoDto {
   @IsUUID() ticketId: string
   @IsOptional() @IsUUID() manifiestoId?: string
-  @IsIn(['GRE']) tipo: 'GRE'
-  @IsOptional() @IsString() @MaxLength(500) observacion?: string
-}
-
-export class EmitCpeDto {
-  @IsUUID() ticketId: string
-  @IsOptional() @IsUUID() manifiestoId?: string
-  @IsIn(['CPE']) tipo: 'CPE'
-  @IsOptional() @IsString() @MaxLength(20) serie?: string
+  @IsOptional() @IsIn(['GRE', 'CPE']) tipo?: 'GRE' | 'CPE'
+  @IsOptional() @IsIn(['BOLETA', 'FACTURA', 'NOTA_CREDITO']) tipoComprobante?: import('../../database/entities/operaciones.entity').TipoComprobante
+  @IsOptional() @IsString() @MaxLength(10) serie?: string
   @IsOptional() @IsString() @MaxLength(500) observacion?: string
 }
 

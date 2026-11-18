@@ -63,7 +63,7 @@ export class RepartoService {
       if (!sedeId) throw new BadRequestException('La planilla requiere sede')
       const sede = await manager.findOneBy(Sede, { id: sedeId })
       if (!sede) throw new NotFoundException('Sede no encontrada')
-      const ticketIds = Array.isArray(dto.ticketIds) ? [...new Set(dto.ticketIds)] : []
+      const ticketIds = Array.isArray(dto.ticketIds) ? [...new Set<string>(dto.ticketIds)] : []
       if (ticketIds.length === 0) throw new BadRequestException('Seleccione al menos un ticket elegible')
       const tickets = await manager.find(Ticket, { where: ticketIds.map((id: string) => ({ id })), relations: ['bultos'] })
       if (tickets.length !== ticketIds.length) throw new BadRequestException('Uno o más tickets no existen')

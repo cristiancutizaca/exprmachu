@@ -128,8 +128,25 @@ export const cajaApi = {
 }
 
 export const comprobantesApi = {
-  listar: (params?: { tipo?: string; estado?: string; q?: string; sedeId?: string; page?: number; limit?: number }) => api.get('/comprobantes', { params }),
+  listar: (params?: { tipo?: string; estado?: string; q?: string; sedeId?: string; page?: number; limit?: number; fechaDesde?: string; fechaHasta?: string }, signal?: AbortSignal) => api.get('/comprobantes', { params, signal }),
   anular: (id: string, motivo: string) => api.patch(`/comprobantes/${id}/anular`, { motivo }),
+  pdf: (id: string, inline = false) => api.get<Blob>(`/comprobantes/${id}/pdf`, { params: { inline: inline ? '1' : undefined }, responseType: 'blob' }),
+  emitir: (data: Record<string, unknown>) => api.post('/comprobantes/fiscales/emitir', data),
+  consultar: (id: string) => api.post(`/comprobantes/fiscales/${id}/consultar`),
+  archivoFiscal: (id: string, kind: 'xml' | 'cdr') => api.get<Blob>(`/comprobantes/fiscales/${id}/archivos/${kind}`, { responseType: 'blob' }),
+  serie: (data: Record<string, unknown>) => api.post('/comprobantes/fiscales/series', data),
+  calcularDetraccion: (data: Record<string, unknown>) => api.post('/comprobantes/detraccion/calcular', data),
+}
+
+export const guiasApi = {
+  listar: (params: { ticketId?: string; manifiestoId?: string; page?: number }) => api.get('/gre/fiscales', { params }),
+  detalle: (id: string) => api.get(`/gre/fiscales/${id}`),
+  crear: (data: Record<string, unknown>) => api.post('/gre/fiscales/borradores', data),
+  editar: (id: string, data: Record<string, unknown>) => api.patch(`/gre/fiscales/${id}/borrador`, data),
+  procesar: (id: string, action: 'validar' | 'enviar' | 'consultar') => api.post(`/gre/fiscales/${id}/${action}`),
+  conciliar: (id: string, data: { ticket: string; motivo: string }) => api.post(`/gre/fiscales/${id}/conciliar-ticket`, data),
+  archivo: (id: string, kind: 'xml' | 'zip' | 'cdr' | 'pdf', inline = false) => api.get<Blob>(`/gre/fiscales/${id}/archivos/${kind}`, { params: { inline: inline ? '1' : undefined }, responseType: 'blob' }),
+  serie: (data: Record<string, unknown>) => api.post('/gre/fiscales/series', data),
 }
 
 export const desembarqueApi = {
@@ -194,6 +211,8 @@ export const catalogosV2Api = {
   almacenes: (params?: { sedeId?: string; estado?: string }) => api.get('/almacenes', { params }),
   ubicaciones: (almacenId: string) => api.get(`/almacenes/${almacenId}/ubicaciones`),
   vehiculos: (params?: { q?: string; estado?: string }) => api.get('/vehiculos', { params }),
+  verificacionVehiculo: (id: string) => api.get(`/vehiculos/${id}/verificacion`),
+  verificacionConductor: (id: string) => api.get(`/conductores/${id}/verificacion`),
   crearVehiculo: (data: any) => api.post('/vehiculos', data),
   actualizarVehiculo: (id: string, data: any) => api.patch(`/vehiculos/${id}`, data),
   conductores: (params?: { q?: string; estado?: string }) => api.get('/conductores', { params }),
@@ -237,6 +256,7 @@ export const transbordoApi = {
 export const manifiestoApi = {
   listar: (params?: { estado?: string; sedeId?: string; page?: number; limit?: number }) => api.get('/manifiesto', { params }),
   getById: (id: string) => api.get(`/manifiesto/${id}`),
+  pdf: (id: string, inline = false) => api.get<Blob>(`/manifiesto/${id}/pdf`, { params: { inline: inline ? '1' : undefined }, responseType: 'blob' }),
   crear: (data: any) => api.post('/manifiesto', data),
   agregarTickets: (id: string, ticketIds: string[]) => api.post(`/manifiesto/${id}/tickets`, { ticketIds }),
   asignarFlota: (id: string, data: { vehiculoId?: string; conductorId?: string }) => api.patch(`/manifiesto/${id}/flota`, data),
@@ -252,11 +272,16 @@ export const manifiestoApi = {
 export const clientesApi = {
   buscar:   (q: string) => api.get<Cliente[]>('/clientes/buscar', { params: { q } }),
   getById:  (id: string) => api.get<Cliente>(`/clientes/${id}`),
+  consultaRuc: (ruc: string) => api.get<{ fuente: string; fechaPadron: string; registro: { razonSocial: string; estado: string; condicion: string } | null }>(`/clientes/sunat/ruc/${ruc}`),
   byDniRuc: (dniRuc: string) => api.get<Cliente>(`/clientes/dni-ruc/${dniRuc}`),
   crear:    (data: Partial<Cliente>) => api.post<Cliente>('/clientes', data),
 }
 
 // ─── DESTINOS ────────────────────────────────────────────────────────────────
+export const programacionesApi = {
+  listar: () => api.get<Array<{id: string; codigo: string; descripcion?: string}>>('/programaciones'),
+}
+
 export const destinosApi = {
   listar: () => api.get<Destino[]>('/destinos'),
 }

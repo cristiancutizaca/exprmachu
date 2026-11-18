@@ -24,7 +24,7 @@ import {
   calcularMontos, nextNumeroTicket, TICKETS_DB, COSTO_KG_DEFAULT,
 } from '@/lib/data'
 import type { TipoPago, TipoEntrega, Ticket as TicketType, Destino, Cliente } from '@/types'
-import { clientesApi, destinosApi, ticketsApi } from '@/lib/api'
+import { clientesApi, destinosApi, programacionesApi, ticketsApi } from '@/lib/api'
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const schema = z.object({
@@ -64,26 +64,32 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
     setLoading(true); setStatus('idle')
     try {
       if (!isDemoMode) {
-        // Consulta solo el padrón de clientes registrados.
-        // RENIEC/SUNAT aún no tienen integración real. No rellenar con fichas de demostración.
+        if (tipoDoc === 'RUC') {
+          const { data } = await clientesApi.consultaRuc(doc)
+          if (!data.registro) { setStatus('error'); toast('RUC ausente en el padrón importado'); return }
+          setValue(`${prefix}Nombre`, data.registro.razonSocial, { shouldValidate: true })
+          setStatus('ok')
+          toast(`Padrón SUNAT ${data.fechaPadron} · ${data.registro.estado} · ${data.registro.condicion}`)
+          return
+        }
         const response = await clientesApi.byDniRuc(doc)
         if (!response.data?.razonSocial) { setStatus('error'); toast.error('Cliente sin nombre registrado'); return }
         setValue(`${prefix}Nombre`, response.data.razonSocial, { shouldValidate: true })
         setStatus('ok')
-        toast.success('Cliente encontrado en el padrón interno')
+        toast.success('Cliente encontrado en el registro interno')
         return
       }
       if (tipoDoc === 'DNI') {
         const res = await consultarRENIEC(doc)
         if (res) {
           setValue(`${prefix}Nombre`, res.nombreCompleto, { shouldValidate: true })
-          setStatus('ok'); toast.success(`${label} encontrado en RENIEC`)
+          setStatus('ok'); toast.success(`${label} encontrado en datos de demostración`)
         } else { setStatus('error'); toast.error('DNI no encontrado en RENIEC') }
       } else {
         const res = await consultarSUNAT(doc)
         if (res) {
           setValue(`${prefix}Nombre`, res.razonSocial, { shouldValidate: true })
-          setStatus('ok'); toast.success('Empresa encontrada en SUNAT')
+          setStatus('ok'); toast.success('Empresa encontrada en datos de demostración')
         } else { setStatus('error'); toast.error('RUC no encontrado en SUNAT') }
       }
     } catch (error: any) {
@@ -91,7 +97,7 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
       if (!isDemoMode && error.response?.status === 404) {
         toast('Cliente no registrado. Ingrese nombre o razón social manualmente. No se consultó RENIEC/SUNAT.')
       } else {
-        toast.error('No se pudo consultar el padrón de clientes. Ingrese los datos manualmente.')
+        toast.error(error.response?.data?.message || 'Ingrese los datos manualmente.')
       }
     } finally { setLoading(false) }
   }
@@ -234,7 +240,13 @@ export default function RecepcionPage() {
   const router = useRouter()
   const token = useAuthStore(s => s.token)
   const isDemoMode = !token || token.startsWith('demo-')
-  const [destinos, setDestinos] = useState<Destino[]>(DESTINOS_LIST)
+  const [destinos, setDestinos] = useState<Destino[]>(isDemoMode ? DESTINOS_LIST : [])
+  const [programaciones, setProgramaciones] = useState<Array<{ id: string; label: string }>>([])
+  useEffect(() => {
+    if (isDemoMode) return
+    programacionesApi.listar().then(({ data }) => setProgramaciones(data.map(program => ({ id: program.id, label: program.descripcion || program.codigo }))))
+      .catch(() => toast.error('No se pudo cargar programaciones'))
+  }, [isDemoMode])
   const [savedTicket, setSavedTicket] = useState<TicketType | null>(null)
   const { guias, mercaderias, addGuia, removeGuia, addMercaderia, removeMercaderia, resetRecepcion } =
     useRecepcionStore()
@@ -466,7 +478,7 @@ export default function RecepcionPage() {
           <FormField label="Programación" className="flex-1 min-w-[240px]">
             <Select {...register('programacionId')}>
               <option value="">Seleccione Programación</option>
-              {PROGRAMACIONES.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+              {(isDemoMode ? PROGRAMACIONES : programaciones).map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
             </Select>
           </FormField>
         </div>
