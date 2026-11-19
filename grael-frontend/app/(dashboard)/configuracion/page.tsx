@@ -18,6 +18,9 @@ const SECCIONES = [
   { id:'seguridad',label:'Seguridad',             icon:Shield,    color:'text-red-500'   },
 ]
 
+type SedeUi = { id: string; nombre: string; ruc?: string; direccion?: string; telefono?: string; correo?: string; departamento?: string }
+const sedeVacia = { nombre: '', ruc: '', direccion: '', telefono: '', email: '', ciudad: '', igv: '' }
+
 type TarifaUi = {
   id: string; origenId: string; destinoId: string; tipoMercaderia: string
   origen?: { nombre?: string }; destino?: { nombre?: string }
@@ -34,15 +37,16 @@ export default function ConfiguracionPage() {
   const [saved,  setSaved]    = useState(false)
 
   // Sede
-  const [sede, setSede] = useState({ nombre: '', ruc: '', direccion: '', telefono: '', email: '', ciudad: '', igv: '' })
+  const [sede, setSede] = useState(sedeVacia)
+  const [sedes, setSedes] = useState<SedeUi[]>([])
   const [loaded, setLoaded] = useState(isDemoMode)
   const [loadError, setLoadError] = useState('')
   const [attempt, retry] = useState(0)
 
   // Tarifas
   const [tarifas, setTarifas] = useState<TarifaUi[]>([])
+  const [tarifasEditadas, setTarifasEditadas] = useState<Set<string>>(new Set())
   const canEditNational = user?.rol === 'SUPERVISOR' || user?.rol === 'SUPERADMIN'
-  const canEditConfiguration = canEditNational
   const [sedeId, setSedeId] = useState<string | null>(user?.sedeId || null)
 
   // Sistema
@@ -68,6 +72,12 @@ export default function ConfiguracionPage() {
   const [passForm, setPassForm] = useState({ actual:'', nueva:'', confirmar:'' })
   const [savingPassword, setSavingPassword] = useState(false)
 
+  function elegirSede(site?: SedeUi) {
+    setSedeId(site?.id || null)
+    setSede(current => ({ ...sedeVacia, igv: current.igv, nombre: site?.nombre ?? '', ruc: site?.ruc ?? '',
+      direccion: site?.direccion ?? '', telefono: site?.telefono ?? '', email: site?.correo ?? '', ciudad: site?.departamento ?? '' }))
+  }
+
   useEffect(() => {
     if (isDemoMode) return
     let active = true
@@ -75,16 +85,14 @@ export default function ConfiguracionPage() {
     setLoadError('')
     Promise.all([
       configuracionApi.all(),
-      catalogosV2Api.sedes(user?.sedeId ? { sedeId: user.sedeId, activo: true } : { activo: true }),
+      catalogosV2Api.sedes({ activo: true }),
       catalogosV2Api.tarifas({ activo: true }),
     ]).then(([configResponse, sedesResponse, tarifasResponse]) => {
       if (!active) return
       const values = configResponse.data || {}
-      const site: any = sedesResponse.data?.[0]
-      if (site) {
-        setSedeId(site.id)
-        setSede(current => ({ ...current, nombre: site.nombre ?? '', ruc: site.ruc ?? '', direccion: site.direccion ?? '', telefono: site.telefono ?? '', email: site.correo ?? '', ciudad: site.departamento ?? '' }))
-      }
+      const sites: SedeUi[] = sedesResponse.data || []
+      setSedes(sites)
+      elegirSede(sites.find(site => site.id === user?.sedeId) || (sites.length === 1 ? sites[0] : undefined))
       const realTarifas = (tarifasResponse.data || []) as TarifaUi[]
       setTarifas(realTarifas)
       setSede(current => ({ ...current, igv: values['sistema.igv'] ?? '18' }))
@@ -115,7 +123,7 @@ export default function ConfiguracionPage() {
   }
 
   const handleSave = async () => {
-    if (!isDemoMode && !canEditConfiguration) {
+    if (!isDemoMode && !canEditNational) {
       toast('Tu rol tiene acceso de lectura en Configuración. No se enviaron cambios al servidor.')
       return
     }
@@ -124,15 +132,26 @@ export default function ConfiguracionPage() {
       if (isDemoMode) {
         await new Promise(r => setTimeout(r, 350))
       } else {
-        const updates = [
+        if (seccion === 'sede' && sedeId) {
+          const site = (await catalogosV2Api.actualizarSede(sedeId, { nombre: sede.nombre, ruc: sede.ruc,
+            direccion: sede.direccion, telefono: sede.telefono, correo: sede.email, departamento: sede.ciudad })).data as SedeUi
+          setSedes(rows => rows.map(row => row.id === site.id ? site : row))
+        }
+        if (seccion === 'tarifas') {
+          const updates = tarifas.filter(tarifa => tarifasEditadas.has(tarifa.id))
+          for (const tarifa of updates) {
+            await catalogosV2Api.actualizarTarifa(tarifa.id, { precioKg: tarifa.precioKg, precioVolumen: tarifa.precioVolumen,
+              precioMinimo: tarifa.precioMinimo, recargoReparto: tarifa.recargoReparto, recargoExpress: tarifa.recargoExpress })
+            setTarifasEditadas(current => new Set([...current].filter(id => id !== tarifa.id)))
+          }
+        }
+        if (seccion === 'sistema') await configuracionApi.bulk([
           { clave: 'sistema.igv', valor: sede.igv },
-          ...Object.entries(notif).map(([key, value]) => ({ clave: 'notif.' + key, valor: String(value) })),
           ...Object.entries(sistema).filter(([key]) => key !== 'igv').map(([clave, valor]) => ({ clave: `sistema.${clave}`, valor: String(valor) })),
-        ]
-        const writes: Promise<unknown>[] = [configuracionApi.bulk(updates)]
-        if (sedeId) writes.push(catalogosV2Api.actualizarSede(sedeId, { nombre: sede.nombre, ruc: sede.ruc, direccion: sede.direccion, telefono: sede.telefono, correo: sede.email, departamento: sede.ciudad }))
-        if (canEditNational) for (const tarifa of tarifas) writes.push(catalogosV2Api.actualizarTarifa(tarifa.id, { precioKg: Number(tarifa.precioKg), precioVolumen: Number(tarifa.precioVolumen), precioMinimo: Number(tarifa.precioMinimo), recargoReparto: Number(tarifa.recargoReparto), recargoFragil: Number(tarifa.recargoFragil), recargoExpress: Number(tarifa.recargoExpress), porcentajeSeguro: Number(tarifa.porcentajeSeguro) }))
-        await Promise.all(writes)
+        ])
+        if (seccion === 'notif') await configuracionApi.bulk(
+          Object.entries(notif).map(([key, value]) => ({ clave: 'notif.' + key, valor: String(value) })),
+        )
       }
       setSaved(true)
       toast.success(isDemoMode ? 'Configuración guardada en Demo' : 'Configuración guardada en el API')
@@ -151,7 +170,7 @@ export default function ConfiguracionPage() {
           <Button variant="primary" size="sm" loading={saving}
             icon={saved ? <Check size={13}/> : <Save size={13}/>}
             onClick={handleSave}
-            disabled={!isDemoMode && !canEditConfiguration}
+            disabled={seccion === 'seguridad' || (!isDemoMode && (!canEditNational || (seccion === 'sede' && !sedeId) || (seccion === 'tarifas' && tarifasEditadas.size === 0)))}
             className={saved ? '!bg-green-600' : ''}>
             {saved ? 'Guardado' : 'Guardar cambios'}
           </Button>
@@ -198,29 +217,34 @@ export default function ConfiguracionPage() {
           {/* ── DATOS DE SEDE ─────────────────────────────────────────────── */}
           {seccion === 'sede' && (
             <Card>
+              {!isDemoMode && <label className="mb-4 block max-w-md text-sm">
+                Sede a configurar
+                <Select value={sedeId ?? ''} onChange={event => elegirSede(sedes.find(site => site.id === event.target.value))}>
+                  <option value="">Seleccione la sede</option>
+                  {sedes.map(site => <option key={site.id} value={site.id}>{site.nombre}</option>)}
+                </Select>
+              </label>}
               <h3 className="text-[14px] font-semibold text-gray-700 mb-4 pb-2 border-b">Datos de la Sede</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="Nombre de la agencia" className="md:col-span-2">
-                  <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.nombre} onChange={e=>setSede(s=>({...s,nombre:e.target.value}))}/>
+                  <Input disabled={!isDemoMode && !canEditNational} value={sede.nombre} onChange={e=>setSede(s=>({...s,nombre:e.target.value}))}/>
                 </FormField>
                 <FormField label="RUC">
-                  <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.ruc} onChange={e=>setSede(s=>({...s,ruc:e.target.value}))} maxLength={11}/>
+                  <Input disabled={!isDemoMode && !canEditNational} value={sede.ruc} onChange={e=>setSede(s=>({...s,ruc:e.target.value}))} maxLength={11}/>
                 </FormField>
                 <FormField label="Ciudad / Sede">
-                  <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.ciudad} onChange={e=>setSede(s=>({...s,ciudad:e.target.value}))}/>
+                  <Input disabled={!isDemoMode && !canEditNational} value={sede.ciudad} onChange={e=>setSede(s=>({...s,ciudad:e.target.value}))}/>
                 </FormField>
                 <FormField label="Dirección" className="md:col-span-2">
-                  <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.direccion} onChange={e=>setSede(s=>({...s,direccion:e.target.value}))}/>
+                  <Input aria-label="Dirección de la sede" disabled={!isDemoMode && !canEditNational} value={sede.direccion} onChange={e=>setSede(s=>({...s,direccion:e.target.value}))}/>
                 </FormField>
                 <FormField label="Teléfono">
-                  <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.telefono} onChange={e=>setSede(s=>({...s,telefono:e.target.value}))}/>
+                  <Input disabled={!isDemoMode && !canEditNational} value={sede.telefono} onChange={e=>setSede(s=>({...s,telefono:e.target.value}))}/>
                 </FormField>
                 <FormField label="Email">
-                  <Input disabled={!isDemoMode && !canEditConfiguration} type="email" value={sede.email} onChange={e=>setSede(s=>({...s,email:e.target.value}))}/>
+                  <Input disabled={!isDemoMode && !canEditNational} type="email" value={sede.email} onChange={e=>setSede(s=>({...s,email:e.target.value}))}/>
                 </FormField>
-                <FormField label="IGV (%)">
-                  <Input disabled={!isDemoMode && !canEditConfiguration} type="number" value={sede.igv} onChange={e=>setSede(s=>({...s,igv:e.target.value}))} min={0} max={30}/>
-                </FormField>
+
               </div>
             </Card>
           )}
@@ -230,7 +254,7 @@ export default function ConfiguracionPage() {
             <Card>
               <div className="flex items-center justify-between mb-4 pb-2 border-b"><div><h3 className="text-[14px] font-semibold text-gray-700">Tarifas por ruta</h3><p className="text-[11px] text-gray-400">Origen → destino · tarifa específica persistida</p></div><span className="text-[11px] text-gray-500">{tarifas.length} rutas</span></div>
               {!isDemoMode && !canEditNational && <div className="mb-3 p-2.5 rounded-lg bg-amber-50 text-[11px] text-amber-800">ADMIN_SEDE tiene acceso de lectura. La edición nacional está reservada a SUPERVISOR/SUPERADMIN.</div>}
-              <div className="overflow-x-auto"><table className="w-full text-[11px]"><thead><tr className="bg-gray-50 text-gray-500 uppercase"><th className="p-2 text-left">Ruta / tipo</th><th className="p-2">Kg</th><th className="p-2">Volumen</th><th className="p-2">Mínimo</th><th className="p-2">Reparto</th><th className="p-2">Express</th><th className="p-2">Vigencia</th></tr></thead><tbody>{tarifas.map(tarifa => <tr key={tarifa.id} className="border-b"><td className="p-2"><strong>{tarifa.origen?.nombre || tarifa.origenId} → {tarifa.destino?.nombre || tarifa.destinoId}</strong><br/><span className="text-gray-400">{tarifa.tipoMercaderia}</span></td>{(['precioKg','precioVolumen','precioMinimo','recargoReparto','recargoExpress'] as const).map(field => <td key={field} className="p-2"><Input type="number" step="0.01" min="0" disabled={!isDemoMode && !canEditNational} value={String(tarifa[field] ?? 0)} onChange={e => setTarifas(rows => rows.map(row => row.id === tarifa.id ? { ...row, [field]: Number(e.target.value) } : row))} className="w-20 text-right"/></td>)}<td className="p-2">{tarifa.vigenciaDesde || '—'}<br/>{tarifa.activo ? 'ACTIVA' : 'INACTIVA'}</td></tr>)}</tbody></table></div>
+              <div className="overflow-x-auto"><table className="w-full text-[11px]"><thead><tr className="bg-gray-50 text-gray-500 uppercase"><th className="p-2 text-left">Ruta / tipo</th><th className="p-2">Kg</th><th className="p-2">Volumen</th><th className="p-2">Mínimo</th><th className="p-2">Reparto</th><th className="p-2">Express</th><th className="p-2">Vigencia</th></tr></thead><tbody>{tarifas.map(tarifa => <tr key={tarifa.id} className="border-b"><td className="p-2"><strong>{tarifa.origen?.nombre || tarifa.origenId} → {tarifa.destino?.nombre || tarifa.destinoId}</strong><br/><span className="text-gray-400">{tarifa.tipoMercaderia}</span></td>{(['precioKg','precioVolumen','precioMinimo','recargoReparto','recargoExpress'] as const).map(field => <td key={field} className="p-2"><Input aria-label={tarifa.tipoMercaderia + ' · ' + field} type="number" step="0.0001" min="0" disabled={!isDemoMode && !canEditNational} value={String(tarifa[field] ?? 0)} onChange={e => { setTarifas(rows => rows.map(row => row.id === tarifa.id ? { ...row, [field]: Number(e.target.value) } : row)); setTarifasEditadas(ids => new Set(ids).add(tarifa.id)) }} className="w-20 text-right"/></td>)}<td className="p-2">{tarifa.vigenciaDesde || '—'}<br/>{tarifa.activo ? 'ACTIVA' : 'INACTIVA'}</td></tr>)}</tbody></table></div>
               {!tarifas.length && <p className="py-8 text-center text-[12px] text-gray-400">No hay tarifas de ruta para la consulta actual.</p>}
               <div className="mt-4 pt-3 border-t"><p className="text-[11px] text-gray-400">{isDemoMode ? 'Modo Demo: no se escribe PostgreSQL.' : 'Los cambios se guardan en la tarifa específica seleccionada; no se agrupan por tipo de mercadería.'}</p></div>
             </Card>
@@ -239,36 +263,39 @@ export default function ConfiguracionPage() {
           {/* ── SISTEMA ───────────────────────────────────────────────────── */}
           {seccion === 'sistema' && (
             <Card>
+                <FormField label="IGV general (%)">
+                  <Input disabled={!isDemoMode && !canEditNational} type="number" value={sede.igv} onChange={e=>setSede(s=>({...s,igv:e.target.value}))} min={0} max={30}/>
+                </FormField>
               <h3 className="text-[14px] font-semibold text-gray-700 mb-4 pb-2 border-b">Preferencias del sistema</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="Moneda">
-                  <Select disabled={!isDemoMode && !canEditConfiguration} value={sistema.moneda} onChange={e=>setSistema(s=>({...s,moneda:e.target.value}))}>
+                  <Select disabled={!isDemoMode && !canEditNational} value={sistema.moneda} onChange={e=>setSistema(s=>({...s,moneda:e.target.value}))}>
                     <option value="PEN">PEN — Sol Peruano</option>
                     <option value="USD">USD — Dólar</option>
                   </Select>
                 </FormField>
                 <FormField label="Zona horaria">
-                  <Select disabled={!isDemoMode && !canEditConfiguration} value={sistema.zona_horaria} onChange={e=>setSistema(s=>({...s,zona_horaria:e.target.value}))}>
+                  <Select disabled={!isDemoMode && !canEditNational} value={sistema.zona_horaria} onChange={e=>setSistema(s=>({...s,zona_horaria:e.target.value}))}>
                     <option value="America/Lima">America/Lima (UTC-5)</option>
                     <option value="America/Bogota">America/Bogota</option>
                   </Select>
                 </FormField>
                 <FormField label="Formato de fecha">
-                  <Select disabled={!isDemoMode && !canEditConfiguration} value={sistema.formato_fecha} onChange={e=>setSistema(s=>({...s,formato_fecha:e.target.value}))}>
+                  <Select disabled={!isDemoMode && !canEditNational} value={sistema.formato_fecha} onChange={e=>setSistema(s=>({...s,formato_fecha:e.target.value}))}>
                     <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                     <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                     <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                   </Select>
                 </FormField>
                 <FormField label="Tickets por página">
-                  <Select disabled={!isDemoMode && !canEditConfiguration} value={sistema.tickets_por_pagina} onChange={e=>setSistema(s=>({...s, tickets_por_pagina:e.target.value}))}>
+                  <Select disabled={!isDemoMode && !canEditNational} value={sistema.tickets_por_pagina} onChange={e=>setSistema(s=>({...s, tickets_por_pagina:e.target.value}))}>
                     {['10','20','50','100'].map(n=><option key={n}>{n}</option>)}
                   </Select>
                 </FormField>
                 <FormField label="Días en almacén (alerta)" className="md:col-span-2">
                   <div className="flex items-center gap-3">
                     <Input type="number" min={1} max={30} value={sistema.dias_vencimiento}
-                      disabled={!isDemoMode && !canEditConfiguration} onChange={e=>setSistema(s=>({...s,dias_vencimiento:e.target.value}))}
+                      disabled={!isDemoMode && !canEditNational} onChange={e=>setSistema(s=>({...s,dias_vencimiento:e.target.value}))}
                       className="w-24"/>
                     <p className="text-[11px] text-gray-400">días sin ser recogida para mostrar alerta en Inventario</p>
                   </div>
@@ -276,7 +303,7 @@ export default function ConfiguracionPage() {
                 <div className="md:col-span-2 flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <input type="checkbox"
                     checked={sistema.imprimir_auto === 'true'}
-                    disabled={!isDemoMode && !canEditConfiguration} onChange={e=>setSistema(s=>({...s,imprimir_auto:e.target.checked?'true':'false'}))}
+                    disabled={!isDemoMode && !canEditNational} onChange={e=>setSistema(s=>({...s,imprimir_auto:e.target.checked?'true':'false'}))}
                     className="accent-sky-brand w-4 h-4"/>
                   <div>
                     <p className="text-[12px] font-medium text-gray-700">Imprimir ticket automáticamente al guardar</p>
@@ -307,7 +334,7 @@ export default function ConfiguracionPage() {
                     <label className="relative w-10 h-5 cursor-pointer flex-shrink-0">
                       <input type="checkbox" className="sr-only"
                         checked={(notif as any)[item.key]}
-                        disabled={!isDemoMode && !canEditConfiguration} onChange={e=>setNotif(n=>({...n,[item.key]:e.target.checked}))}/>
+                        disabled={!isDemoMode && !canEditNational} onChange={e=>setNotif(n=>({...n,[item.key]:e.target.checked}))}/>
                       <div className={`w-10 h-5 rounded-full transition-colors ${(notif as any)[item.key] ? 'bg-sky-brand' : 'bg-gray-300'}`}/>
                       <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${(notif as any)[item.key] ? 'translate-x-5' : 'translate-x-0'}`}/>
                     </label>

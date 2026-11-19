@@ -89,7 +89,8 @@ export class RepartoService {
         if (ticket.anulado || ticket.tipoEntrega !== TipoEntrega.REPARTO || ![EstadoTicket.LISTO_REPARTO, EstadoTicket.DESEMBARQUE_EN_DESTINO].includes(ticket.estado)) {
           throw new BadRequestException({ statusCode: 400, code: 'DELIVERY_TICKET_NOT_ELIGIBLE', message: `El ticket ${ticket.numeroTicket} no está listo para reparto`, details: { ticketId: ticket.id } })
         }
-        const bultos = (ticket.bultos || []).filter(bulto => [EstadoBulto.DESEMBARCADO, EstadoBulto.LISTO_RECOJO].includes(bulto.estado))
+        const bultos = (ticket.bultos || []).filter(bulto => [EstadoBulto.DESEMBARCADO, EstadoBulto.LISTO_RECOJO].includes(bulto.estado)
+          || (bulto.estado === EstadoBulto.EN_ALMACEN && ticket.estado === EstadoTicket.LISTO_REPARTO))
         if (bultos.length === 0) throw new BadRequestException(`El ticket ${ticket.numeroTicket} no tiene bultos listos para reparto`)
         if (bultos.some(bulto => bulto.sedeActualId !== sedeId)) throw new BadRequestException('La sede de la planilla debe coincidir con la custodia de los bultos')
         for (const bulto of bultos) details.push({ ticket, bulto })
@@ -166,10 +167,13 @@ export class RepartoService {
 
   async registrarIntento(id: string, dto: any, usuarioId: string, user?: any) {
     return this.dataSource.transaction(async manager => {
-      const detalle = await manager.findOne(PlanillaRepartoDetalle, { where: { id }, relations: ['planilla', 'bulto', 'ticket'], lock: { mode: 'pessimistic_write', tables: ['planillas_reparto_detalles'] } })
-      if (!detalle) throw new NotFoundException('Detalle de reparto no encontrado')
-      assertSedeAccess(user, detalle.planilla?.sedeId, 'registrar intentos de entrega')
-      if (detalle.planilla?.estado !== EstadoPlanillaReparto.EN_RUTA) throw new BadRequestException('La planilla no está en ruta')
+      const ref = await manager.findOneBy(PlanillaRepartoDetalle, { id })
+      if (!ref) throw new NotFoundException('Detalle de reparto no encontrado')
+      const planilla = await manager.findOne(PlanillaReparto, { where: { id: ref.planillaId }, lock: { mode: 'pessimistic_write' } })
+      if (!planilla) throw new NotFoundException('Planilla no encontrada')
+      assertSedeAccess(user, planilla.sedeId, 'registrar intentos de entrega')
+      if (planilla.estado !== EstadoPlanillaReparto.EN_RUTA) throw new BadRequestException('La planilla no está en ruta')
+      const detalle = await manager.findOneOrFail(PlanillaRepartoDetalle, { where: { id }, relations: ['bulto', 'ticket'] })
       if (!Object.values(EstadoIntentoReparto).includes(dto.estado)) throw new BadRequestException('Estado de intento inválido')
       if (detalle.estado === EstadoIntentoReparto.ENTREGADO || detalle.estado === EstadoIntentoReparto.RETORNADO) throw new BadRequestException('El detalle de reparto ya tiene un resultado final')
       const usuario = await manager.findOneBy(Usuario, { id: usuarioId })
@@ -203,7 +207,7 @@ export class RepartoService {
 
   async retorno(id: string, dto: { almacenDestinoId: string; ubicacionDestinoId: string; observacion?: string }, usuarioId: string, user?: any) {
     const result = await this.dataSource.transaction(async manager => {
-      const planilla = await manager.findOne(PlanillaReparto, { where: { id }, relations: ['sede'] })
+      const planilla = await manager.findOne(PlanillaReparto, { where: { id }, lock: { mode: 'pessimistic_write' } })
       if (!planilla) throw new NotFoundException('Planilla no encontrada')
       assertSedeAccess(user, planilla.sedeId, 'registrar retorno de reparto')
       if (planilla.estado !== EstadoPlanillaReparto.EN_RUTA) throw new BadRequestException('Solo una planilla en ruta puede retornar')
@@ -250,18 +254,19 @@ export class RepartoService {
   }
 
   async finalizar(id: string, usuarioId: string, user?: any) {
-    const planilla = await this.repo.findOne({ where: { id }, relations: ['sede'] })
-    if (!planilla) throw new NotFoundException('Planilla no encontrada')
-    assertSedeAccess(user, planilla.sedeId, 'finalizar reparto')
-    if (planilla.estado !== EstadoPlanillaReparto.EN_RUTA) throw new BadRequestException('Solo una planilla en ruta puede finalizarse')
-    const details = await this.detalleRepo.find({ where: { planillaId: id }, relations: ['ticket', 'bulto'] })
-    if (details.length === 0) throw new BadRequestException('La planilla no tiene detalles')
-    const unresolved = details.filter(item => ![EstadoIntentoReparto.ENTREGADO, EstadoIntentoReparto.RETORNADO, EstadoIntentoReparto.REPROGRAMADO].includes(item.estado))
-    if (unresolved.length > 0) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_SHEET_UNRESOLVED', message: 'No se puede finalizar con entregas sin resultado operacional', details: { details: unresolved.map(item => item.id) } })
-    if (details.some(item => item.bulto.estado === EstadoBulto.EN_REPARTO)) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_SHEET_ACTIVE_BULK', message: 'No se puede finalizar con bultos aún en reparto', details: {} })
-    planilla.estado = EstadoPlanillaReparto.FINALIZADO
-    planilla.observacion = planilla.observacion || `Finalizado por ${usuarioId}`
-    const saved = await this.repo.save(planilla)
-    return saved
+    return this.dataSource.transaction(async manager => {
+      const planilla = await manager.findOne(PlanillaReparto, { where: { id }, lock: { mode: 'pessimistic_write' } })
+      if (!planilla) throw new NotFoundException('Planilla no encontrada')
+      assertSedeAccess(user, planilla.sedeId, 'finalizar reparto')
+      if (planilla.estado !== EstadoPlanillaReparto.EN_RUTA) throw new BadRequestException('Solo una planilla en ruta puede finalizarse')
+      const details = await manager.find(PlanillaRepartoDetalle, { where: { planillaId: id }, relations: ['ticket', 'bulto'] })
+      if (details.length === 0) throw new BadRequestException('La planilla no tiene detalles')
+      const unresolved = details.filter(item => ![EstadoIntentoReparto.ENTREGADO, EstadoIntentoReparto.RETORNADO, EstadoIntentoReparto.REPROGRAMADO].includes(item.estado))
+      if (unresolved.length > 0) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_SHEET_UNRESOLVED', message: 'No se puede finalizar con entregas sin resultado operacional', details: { details: unresolved.map(item => item.id) } })
+      if (details.some(item => item.bulto.estado === EstadoBulto.EN_REPARTO)) throw new BadRequestException({ statusCode: 409, code: 'DELIVERY_SHEET_ACTIVE_BULK', message: 'No se puede finalizar con bultos aún en reparto', details: {} })
+      planilla.estado = EstadoPlanillaReparto.FINALIZADO
+      planilla.observacion = planilla.observacion || `Finalizado por ${usuarioId}`
+      return manager.save(PlanillaReparto, planilla)
+    })
   }
 }

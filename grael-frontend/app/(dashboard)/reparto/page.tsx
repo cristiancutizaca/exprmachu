@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { CheckCircle2, ClipboardList, Play, RefreshCw, Truck, XCircle } from 'lucide-react'
 import { NuevaPlanilla } from './NuevaPlanilla'
+import { RetornoPlanilla } from './RetornoPlanilla'
 import { repartoApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
 import { Button, Card, PageHeader, Badge, EmptyState } from '@/components/ui'
@@ -25,6 +26,7 @@ export default function RepartoPage() {
   const puedeCrear = ['SUPERADMIN', 'SUPERVISOR', 'ADMIN_SEDE', 'OPERADOR'].includes(user?.rol || '')
   const puedeOperar = ['SUPERADMIN', 'SUPERVISOR', 'ADMIN_SEDE', 'REPARTIDOR'].includes(user?.rol || '')
   const [nueva, setNueva] = useState(false)
+  const [retornoId, setRetornoId] = useState<string>()
   const isDemoMode = isDemoSession(token)
   const [planillas, setPlanillas] = useState<any[]>(isDemoMode ? DEMO_SHEETS : [])
   const [selected, setSelected] = useState<any | null>(null)
@@ -71,16 +73,6 @@ export default function RepartoPage() {
     catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo registrar el intento') }
   }
 
-  const registrarRetorno = async (planilla: any) => {
-    const almacenDestinoId = window.prompt('UUID del almacén destino')
-    const ubicacionDestinoId = window.prompt('UUID de la ubicación destino')
-    if (!almacenDestinoId || !ubicacionDestinoId) return
-    const observacion = window.prompt('Observación del retorno', '') || undefined
-    if (isDemoMode) { toast.success('Demo: retorno a almacén simulado'); return }
-    try { await repartoApi.retorno(planilla.id, { almacenDestinoId, ubicacionDestinoId, observacion }); await load(); if (selected) await openDetail(selected); toast.success('Retorno registrado') }
-    catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo registrar el retorno') }
-  }
-
   const summary = useMemo(() => ({ total: planillas.length, enRuta: planillas.filter(item => item.estado === 'EN_RUTA').length, asignadas: planillas.filter(item => item.estado === 'ASIGNADO').length }), [planillas])
 
   return (
@@ -100,7 +92,10 @@ export default function RepartoPage() {
           {loading ? <p className="p-6 text-sm text-gray-500">Cargando...</p> : planillas.length === 0 ? <EmptyState title="Sin planillas" subtitle="No hay planillas para la sede y filtros actuales." /> : <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b text-[10px] uppercase text-gray-400"><th className="px-3 py-3">Fecha</th><th className="px-3 py-3">Zona</th><th className="px-3 py-3">Vehículo</th><th className="px-3 py-3">Estado</th><th className="px-3 py-3" /></tr></thead><tbody>{planillas.map(planilla => <tr key={planilla.id} className="border-b border-gray-100 text-[12px]"><td className="px-3 py-3 font-mono">{planilla.fecha}</td><td className="px-3 py-3 font-semibold">{planilla.zona || '—'}</td><td className="px-3 py-3">{planilla.vehiculo?.placa || 'Sin asignar'}</td><td className="px-3 py-3"><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${statusClass[planilla.estado] || 'bg-gray-100 text-gray-600'}`}>{planilla.estado}</span></td><td className="px-3 py-3 text-right"><Button variant="ghost" size="sm" onClick={() => void openDetail(planilla)}>Detalle</Button></td></tr>)}</tbody></table></div>}
         </Card>
         <Card title="Detalle operativo">
-          {!selected ? <div className="flex min-h-[220px] items-center justify-center"><EmptyState title="Seleccione una planilla" subtitle="Aquí verá bultos, intentos y acciones de ruta." /></div> : <div className="space-y-4"><div><p className="text-[11px] text-gray-400">Zona</p><p className="font-bold text-navy-500">{selected.zona || '—'}</p><p className="text-[11px] text-gray-500">{selected.vehiculo?.placa || 'Sin vehículo'} · {selected.repartidor?.username || 'Sin repartidor'}</p></div><div className="space-y-2">{(selected.detalles || []).map((detail: any) => <div key={detail.id} className="rounded-lg border border-gray-100 p-3"><div className="flex items-center justify-between"><span className="font-semibold text-[12px]">{detail.ticket?.numeroTicket || detail.ticketId}</span><span className="text-[10px] text-gray-500">{detail.estado}</span></div><p className="mt-1 font-mono text-[11px] text-gray-500">{detail.bulto?.codigo || detail.bultoId}</p><div className="mt-2 flex gap-1"><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA' || ['ENTREGADO', 'RETORNADO'].includes(detail.estado)} variant="outline" size="sm" icon={<CheckCircle2 size={11} />} onClick={() => void registrarIntento(detail, 'ENTREGADO')}>Entregado</Button><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA' || ['ENTREGADO', 'RETORNADO'].includes(detail.estado)} variant="ghost" size="sm" icon={<XCircle size={11} />} onClick={() => void registrarIntento(detail, 'CLIENTE_AUSENTE')}>Fallo</Button></div></div>)}</div><div className="flex flex-wrap gap-2"><Button disabled={!puedeOperar || selected.estado !== 'ASIGNADO'} variant="secondary" size="sm" icon={<Play size={12} />} onClick={() => void action('iniciar', selected)}>Iniciar</Button><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA'} variant="dark" size="sm" icon={<CheckCircle2 size={12} />} onClick={() => void action('finalizar', selected)}>Finalizar</Button><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA'} variant="outline" size="sm" icon={<Truck size={12} />} onClick={() => void registrarRetorno(selected)}>Retorno</Button></div></div>}
+          {!selected ? <div className="flex min-h-[220px] items-center justify-center"><EmptyState title="Seleccione una planilla" subtitle="Aquí verá bultos, intentos y acciones de ruta." /></div> : <div className="space-y-4"><div><p className="text-[11px] text-gray-400">Zona</p><p className="font-bold text-navy-500">{selected.zona || '—'}</p><p className="text-[11px] text-gray-500">{selected.vehiculo?.placa || 'Sin vehículo'} · {selected.repartidor?.username || 'Sin repartidor'}</p></div><div className="space-y-2">{(selected.detalles || []).map((detail: any) => <div key={detail.id} className="rounded-lg border border-gray-100 p-3"><div className="flex items-center justify-between"><span className="font-semibold text-[12px]">{detail.ticket?.numeroTicket || detail.ticketId}</span><span className="text-[10px] text-gray-500">{detail.estado}</span></div><p className="mt-1 font-mono text-[11px] text-gray-500">{detail.bulto?.codigo || detail.bultoId}</p><div className="mt-2 flex gap-1"><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA' || ['ENTREGADO', 'RETORNADO'].includes(detail.estado)} variant="outline" size="sm" icon={<CheckCircle2 size={11} />} onClick={() => void registrarIntento(detail, 'ENTREGADO')}>Entregado</Button><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA' || ['ENTREGADO', 'RETORNADO'].includes(detail.estado)} variant="ghost" size="sm" icon={<XCircle size={11} />} onClick={() => void registrarIntento(detail, 'CLIENTE_AUSENTE')}>Fallo</Button></div></div>)}</div><div className="flex flex-wrap gap-2"><Button disabled={!puedeOperar || selected.estado !== 'ASIGNADO'} variant="secondary" size="sm" icon={<Play size={12} />} onClick={() => void action('iniciar', selected)}>Iniciar</Button><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA'} variant="dark" size="sm" icon={<CheckCircle2 size={12} />} onClick={() => void action('finalizar', selected)}>Finalizar</Button><Button disabled={!puedeOperar || selected.estado !== 'EN_RUTA'} variant="outline" size="sm" icon={<Truck size={12} />} onClick={() => setRetornoId(selected.id)}>Retorno</Button></div>
+            {retornoId === selected.id && <RetornoPlanilla key={selected.id} planillaId={selected.id} sedeId={selected.sedeId}
+              onCancel={() => setRetornoId(undefined)} onSaved={async () => { setRetornoId(undefined); await load(); await openDetail(selected) }} />}
+          </div>}
         </Card>
       </div>
     </div>

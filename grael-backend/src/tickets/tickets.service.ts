@@ -222,7 +222,7 @@ export class TicketsService {
       TicketAccessPolicy.assertCancel(user, accessTicket)
     }
     return this.dataSource.transaction(async manager => {
-      const ticket = await manager.findOne(Ticket, { where: { id }, lock: { mode: 'pessimistic_write' } })
+      const ticket = await manager.findOne(Ticket, { where: { id }, loadEagerRelations: false, lock: { mode: 'pessimistic_write' } })
       if (!ticket) throw new NotFoundException(`Ticket ${id} no encontrado`)
       if (ticket.anulado) throw new BadRequestException('Ya fue anulado')
       const pagos = await manager.find(Pago, { where: { ticketId: id } })
