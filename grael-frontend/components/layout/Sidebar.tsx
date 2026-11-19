@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import Link from 'next/link'
 import {
   LayoutDashboard, Truck, ListOrdered, ArrowLeftRight,
@@ -7,7 +8,7 @@ import {
   Route, CircleDollarSign, ShieldCheck, AlertTriangle
 } from 'lucide-react'
 import { useAuthStore, useUIStore } from '@/store'
-import { TICKETS_DB, DESEMBARQUE_DB } from '@/lib/data'
+import { TICKETS_DB, DESEMBARQUE_DB } from '@/lib/demo/data'
 import type { User } from '@/types'
 import { clsx } from 'clsx'
 
@@ -77,7 +78,7 @@ export default function Sidebar({ currentPath }: { currentPath: string }) {
   const drawerOpen = useUIStore(s => s.drawerOpen)
   const token = useAuthStore(s => s.token)
   const user = useAuthStore(s => s.user)
-  const isDemoMode = !token || token.startsWith('demo-')
+  const isDemoMode = isDemoSession(token)
   const role = user?.rol as Role | undefined
   return (
     <>

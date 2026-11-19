@@ -1,11 +1,12 @@
 'use client'
 
+import { isDemoSession } from '@/lib/demo-session'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowLeftRight, CalendarDays, Download, Eye, MoreVertical, Plus, Search, Truck, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store'
 import { transbordoApi, destinosApi } from '@/lib/api'
-import { DESTINOS_LIST } from '@/lib/data'
+import { DESTINOS_LIST } from '@/lib/demo/data'
 import type { Destino, EstadoTransbordo } from '@/types'
 import { Button, Card, EmptyState, FormField, Input, Modal, PageHeader, Select, StatusBadge } from '@/components/ui'
 
@@ -90,8 +91,8 @@ function Row({ item, onView, onAdvance }: { item: UiTransbordo; onView: () => vo
 export default function TransbordoPage() {
   const token = useAuthStore(s => s.token)
   const user = useAuthStore(s => s.user)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [items, setItems] = useState<UiTransbordo[]>(DEMO_ITEMS)
+  const isDemoMode = isDemoSession(token)
+  const [items, setItems] = useState<UiTransbordo[]>(isDemoMode ? DEMO_ITEMS : [])
   const [destinos, setDestinos] = useState<Destino[]>(isDemoMode ? DESTINOS_LIST : [])
   const [showCrear, setShowCrear] = useState(false)
   const [detalle, setDetalle] = useState<UiTransbordo | null>(null)

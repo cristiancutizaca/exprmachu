@@ -1,5 +1,6 @@
 'use client'
 
+import { isDemoSession } from '@/lib/demo-session'
 import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, Search, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -12,8 +13,8 @@ const DEMO_AUDIT: AuditRow[] = [{ id: 'demo-audit-1', accion: 'TRACKING_MANUAL',
 
 export default function AuditoriaPage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [rows, setRows] = useState<AuditRow[]>(DEMO_AUDIT)
+  const isDemoMode = isDemoSession(token)
+  const [rows, setRows] = useState<AuditRow[]>(isDemoMode ? DEMO_AUDIT : [])
   const [accion, setAccion] = useState('')
   const [entidad, setEntidad] = useState('')
   const [query, setQuery] = useState('')

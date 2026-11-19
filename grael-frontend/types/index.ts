@@ -18,6 +18,7 @@ export interface AuthState {
 
 // ─── DESTINOS / CLIENTES ──────────────────────────────────────────────────────
 export interface Destino {
+  sedeId?: string
   id: string
   nombre: string
   codigo: string
@@ -89,6 +90,7 @@ export interface Bulto {
 }
 
 export interface Ticket {
+  sedeRecepcionId?: string
   id:               string
   numeroTicket:     string
   fechaEmision:     string
@@ -110,6 +112,7 @@ export interface Ticket {
   subTotal:         number
   igv:              number
   total:            number
+  montoPagado?:     number | null
   pagado:           boolean
   fechaPago?:       string
   usuarioCreacion:  string

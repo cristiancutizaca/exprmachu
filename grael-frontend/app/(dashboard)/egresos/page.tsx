@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { BrandHero } from '@/components/brand/BrandIdentity'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -15,8 +16,8 @@ const DEMO_EXPENSES = [
 
 export default function EgresosPage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [egresos, setEgresos] = useState<any[]>(DEMO_EXPENSES)
+  const isDemoMode = isDemoSession(token)
+  const [egresos, setEgresos] = useState<any[]>(isDemoMode ? DEMO_EXPENSES : [])
   const [loading, setLoading] = useState(false)
   const [categoria, setCategoria] = useState('COMBUSTIBLE')
   const [concepto, setConcepto] = useState('')

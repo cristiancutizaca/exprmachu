@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -6,10 +7,10 @@ import { z } from 'zod'
 import { Banknote, Search, CheckCircle, AlertCircle, Loader2, Receipt } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Card, PageHeader, FormField, Input, Select } from '@/components/ui'
-import { TICKETS_DB } from '@/lib/data'
+import { TICKETS_DB } from '@/lib/demo/data'
 import { cajaApi, ticketsApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
-import { formatMoney } from '@/lib/utils'
+import { sumAmounts, formatMoney } from '@/lib/utils'
 import type { Ticket } from '@/types'
 
 const schema = z.object({
@@ -28,7 +29,7 @@ const PAGOS_RAPIDOS = [
 
 export default function PagoSinComprobantePage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
+  const isDemoMode = isDemoSession(token)
   const [busqNum, setBusqNum] = useState('')
   const [busqLoading, setBusqLoading] = useState(false)
   const [ticketEncontrado, setTicket] = useState<Ticket | null>(null)
@@ -59,13 +60,13 @@ export default function PagoSinComprobantePage() {
     setBusqLoading(true); setTicketError(''); setTicket(null)
     try {
       const t = isDemoMode
-        ? TICKETS_DB.find(item => item.numeroTicket === busqNum.trim() || item.numeroTicket.includes(busqNum.trim()))
-        : (await ticketsApi.buscar({ numeroTicket: busqNum.trim() }, 1, 10)).data.data?.[0]
+        ? TICKETS_DB.find(item => item.numeroTicket === busqNum.trim())
+        : (await ticketsApi.buscar({ numeroTicket: busqNum.trim() }, 1, 10)).data.data.find(item => item.numeroTicket === busqNum.trim())
       if (!t) { setTicketError('Ticket no encontrado'); return }
       if (t.anulado || t.pagado) { setTicketError(t.anulado ? 'El ticket está anulado' : 'El ticket ya fue pagado'); return }
       setTicket(t as Ticket)
       setValue('numeroTicket', t.numeroTicket)
-      setValue('monto', Number(t.total))
+      setValue('monto', sumAmounts([t.total, -(t.montoPagado ?? 0)]))
       toast.success(isDemoMode ? 'Demo: ticket encontrado' : 'Ticket encontrado en el API')
     } catch (error: any) {
       setTicketError(error.response?.data?.message || 'No se pudo buscar el ticket')

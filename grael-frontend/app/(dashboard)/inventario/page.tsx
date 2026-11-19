@@ -1,12 +1,13 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useCallback, useEffect, useState } from 'react'
 import { Warehouse, Search, Package, Clock, CheckCircle, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Card, PageHeader, FormField, Input, Select } from '@/components/ui'
-import { INVENTARIO_DB } from '@/lib/data'
+import { INVENTARIO_DB } from '@/lib/demo/data'
 import { bultosApi, inventarioApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
-import type { ItemInventario } from '@/lib/data'
+import type { ItemInventario } from '@/lib/demo/data'
 
 const ESTADO_STYLE = {
   EN_ALMACEN: { label:'En Almacén', bg:'bg-blue-100', text:'text-blue-700' },
@@ -19,8 +20,8 @@ const ESTADO_STYLE = {
 export default function InventarioPage() {
   const token = useAuthStore(s => s.token)
   const user = useAuthStore(s => s.user)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [items, setItems] = useState<ItemInventario[]>(INVENTARIO_DB)
+  const isDemoMode = isDemoSession(token)
+  const [items, setItems] = useState<ItemInventario[]>(isDemoMode ? INVENTARIO_DB : [])
   const [filtro, setFiltro] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('')
   const [loading, setLoading] = useState(false)

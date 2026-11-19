@@ -1,6 +1,8 @@
 'use client'
+import { hoyPeru } from '@/lib/peru-time'
+import { isDemoSession } from '@/lib/demo-session'
 import { BrandHero } from '@/components/brand/BrandIdentity'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   BarChart2, TrendingUp, Download, RefreshCw,
   DollarSign, Package, Users, AlertCircle, ChevronDown
@@ -8,7 +10,7 @@ import {
 import { Button, Card, PageHeader, FormField, Select } from '@/components/ui'
 import { KpiSkeleton, TableSkeleton } from '@/components/ui/Skeleton'
 import { formatMoney, formatMoneyShort, MESES, METODO_COLORS, ESTADO_COLORS, exportToCSV } from '@/lib/utils'
-import { TICKETS_DB, PAGOS_HOY } from '@/lib/data'
+import { TICKETS_DB, PAGOS_HOY } from '@/lib/demo/data'
 import { reportesApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
 import toast from 'react-hot-toast'
@@ -43,7 +45,7 @@ function BarChart({ data, height = 140 }: {
       <svg width="100%" height={height} className="overflow-visible">
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => (
-          <line key={i} x1="0" y1={height - pct * height} x2="100%" y2={height - pct * height}
+          <line key={pct} x1="0" y1={height - pct * height} x2="100%" y2={height - pct * height}
             stroke="#f0f0f0" strokeWidth="1"/>
         ))}
         {data.map((d, i) => {
@@ -52,7 +54,7 @@ function BarChart({ data, height = 140 }: {
           const y   = height - h - 20
           const color = d.color || '#3b97c8'
           return (
-            <g key={i}>
+            <g key={d.label}>
               <rect x={x} y={y} width={`${barW}%`} height={h}
                 fill={color} rx="3" className="hover:opacity-80 transition-opacity cursor-pointer">
                 <title>{d.label}: {formatMoney(d.value)}</title>
@@ -97,7 +99,7 @@ function DonutChart({ data }: {
       <svg width="120" height="120" viewBox="0 0 120 120">
         <circle cx={cx} cy={cy} r={radius} fill="transparent" stroke="#f0f0f0" strokeWidth="18"/>
         {slices.filter(s => s.pct > 0).map((s, i) => (
-          <circle key={i} cx={cx} cy={cy} r={radius} fill="transparent"
+          <circle key={s.label} cx={cx} cy={cy} r={radius} fill="transparent"
             stroke={s.color} strokeWidth="18"
             strokeDasharray={`${s.dash} ${circ - s.dash}`}
             strokeDashoffset={-s.offset}
@@ -169,6 +171,10 @@ function getReporteData(anio: number, mes: number) {
     tickets: { total:tickets.length, pagados:pagados.length, anulados:anulados.length, pendientes:pendiente.length, montoCobrado:totalCobrado, montoPendiente:pendiente.reduce((s,t)=>s+t.total,0) },
     ingresos: { total:totalCobrado, porMetodo: Object.entries(porMetodo).map(([metodo,monto])=>({ metodo, monto, cantidad:PAGOS_HOY.filter(p=>p.metodoPago===metodo).length })) },
     topRutas, topClientes, porDia, porMercaderia,
+    porEstado: Object.entries(tickets.reduce<Record<string, number>>((counts, ticket) => {
+      counts[ticket.estado] = (counts[ticket.estado] ?? 0) + 1
+      return counts
+    }, {})).map(([estado, cantidad]) => ({ estado, cantidad })),
     comparativo: Array.from({length:6}, (_,i) => {
       const d = new Date(); d.setMonth(d.getMonth() - (5-i))
       return { anio:d.getFullYear(), mes:d.getMonth()+1, mes_nombre:MESES[d.getMonth()].slice(0,3), ingresos: 8000 + Math.random()*18000, cobros: 15 + Math.floor(Math.random()*30) }
@@ -178,37 +184,43 @@ function getReporteData(anio: number, mes: number) {
 
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 export default function ReportesPage() {
-  const now = new Date()
-  const [anio, setAnio] = useState(now.getFullYear())
-  const [mes,  setMes]  = useState(now.getMonth() + 1)
+  const [year, month] = hoyPeru().split('-').map(Number)
+  const [anio, setAnio] = useState(year)
+  const [mes,  setMes]  = useState(month)
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
+  const isDemoMode = isDemoSession(token)
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<'resumen'|'rutas'|'clientes'|'mercaderia'>('resumen')
-  const [data, setData] = useState(() => getReporteData(anio, mes))
+  const [data, setData] = useState<ReturnType<typeof getReporteData> | null>(null)
+  const [error, setError] = useState('')
+  const latestRequest = useRef(0)
 
   const reload = useCallback(async () => {
+    const serial = ++latestRequest.current
     setLoading(true)
+    setError('')
     try {
       if (isDemoMode) {
-        await new Promise(r => setTimeout(r, 250))
         setData(getReporteData(anio, mes))
         toast.success('Reporte Demo actualizado')
       } else {
         const [summaryResponse, comparativeResponse, merchandiseResponse] = await Promise.all([
           reportesApi.resumenMes(anio, mes), reportesApi.comparativo(), reportesApi.porMercaderia(anio, mes),
         ])
+        if (serial !== latestRequest.current) return
         const summary = summaryResponse.data
         setData({ ...summary, comparativo: comparativeResponse.data || [], porMercaderia: merchandiseResponse.data || [] })
         toast.success('Reporte real actualizado')
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'No se pudo actualizar el reporte')
-    } finally { setLoading(false) }
+      if (serial === latestRequest.current) { setData(null); setError(error.response?.data?.message || 'No se pudo actualizar el reporte') }
+    } finally { if (serial === latestRequest.current) setLoading(false) }
   }, [anio, mes, isDemoMode])
 
   useEffect(() => { void reload() }, [reload])
 
+  if (!data || loading) return <Card>{error ? <><p role="alert">{error}</p><Button onClick={reload}>Reintentar</Button></> : <p role="status">Cargando reporte…</p>}</Card>
+  const totalRanking = data.topClientes.reduce((total, row) => total + row.montoTotal, 0)
   const maxDia = Math.max(...data.porDia.map(d=>d.monto), 1)
 
   return (
@@ -221,12 +233,12 @@ export default function ReportesPage() {
           <div className="flex gap-2">
             <FormField label="" className="w-[100px]">
               <Select value={mes} onChange={e=>setMes(+e.target.value)} className="text-[12px]">
-                {MESES.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+                {MESES.map((m,i)=><option key={m} value={i+1}>{m}</option>)}
               </Select>
             </FormField>
             <FormField label="" className="w-[90px]">
               <Select value={anio} onChange={e=>setAnio(+e.target.value)} className="text-[12px]">
-                {[2024,2025,2026].map(y=><option key={y}>{y}</option>)}
+                {Array.from({ length: Math.max(year - 2023, 1) }, (_, i) => year - i).map(y=><option key={y}>{y}</option>)}
               </Select>
             </FormField>
             <Button variant="outline" size="sm" icon={<RefreshCw size={13} className={loading?'animate-spin':''}/>} onClick={reload}>
@@ -247,7 +259,7 @@ export default function ReportesPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {loading ? [0,1,2,3].map(i=><KpiSkeleton key={i}/>) : [
           { label:'Tickets del mes',    value:data.tickets.total,              sub:`${data.tickets.pagados} pagados`,       icon:Package,    color:'bg-navy-500',  textColor:'text-navy-500' },
-          { label:'Ingresado',          value:formatMoneyShort(data.ingresos.total), sub:`${data.ingresos.total.toFixed(2)} S/.`, icon:DollarSign, color:'bg-green-600', textColor:'text-green-600' },
+          { label:'Ingresado',          value:formatMoneyShort(data.ingresos.total), sub:formatMoney(data.ingresos.total), icon:DollarSign, color:'bg-green-600', textColor:'text-green-600' },
           { label:'Pendiente de cobro', value:data.tickets.pendientes,         sub:formatMoneyShort(data.tickets.montoPendiente), icon:AlertCircle, color:'bg-amber-500', textColor:'text-amber-600' },
           { label:'Anulados',           value:data.tickets.anulados,           sub:`${((data.tickets.anulados/Math.max(data.tickets.total,1))*100).toFixed(1)}% del total`, icon:BarChart2, color:'bg-red-500', textColor:'text-red-600' },
         ].map(({label,value,sub,icon:Icon,color,textColor})=>(
@@ -316,14 +328,10 @@ export default function ReportesPage() {
           <Card>
             <p className="text-[13px] font-semibold text-gray-700 mb-3">Estado de tickets</p>
             <div className="space-y-2.5">
-              {[
-                { key:'PENDIENTE',              label:'Pendientes',  v:data.tickets.pendientes },
-                { key:'EN_TRANSITO',            label:'En Tránsito', v:2 },
-                { key:'DESEMBARQUE_EN_DESTINO', label:'Desembarque', v:2 },
-                { key:'ENTREGADO',              label:'Entregados',  v:3 },
-                { key:'ANULADO',                label:'Anulados',    v:data.tickets.anulados },
-              ].map(({key,label,v})=>{
-                const est = ESTADO_COLORS[key]
+              {!data.porEstado.length && <p className="text-sm text-gray-500">Sin tickets en el período.</p>}
+              {data.porEstado.map(({ estado: key, cantidad: v }) => {
+                const est = ESTADO_COLORS[key] ?? { bg: 'bg-gray-100', label: key.replaceAll('_', ' ') }
+                const label = est.label
                 return (
                   <div key={key} className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${est.bg.replace('bg-','bg-').replace('100','500')}`}
@@ -355,7 +363,7 @@ export default function ReportesPage() {
             </div>
             <div className="space-y-3">
               {data.topRutas.map((r,i)=>(
-                <div key={i}>
+                <div key={JSON.stringify([r.origen, r.destino])}>
                   <div className="flex justify-between text-[12px] mb-1">
                     <span className="font-medium text-gray-700">{r.origen} → {r.destino}</span>
                     <span className="text-gray-500">{r.total_tickets} tickets</span>
@@ -393,16 +401,16 @@ export default function ReportesPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                {['#','Cliente','Tipo','Envíos','Monto Total','% del Total'].map(h=>(
+                {['#','Cliente','Tipo','Envíos','Monto Total','% del ranking'].map(h=>(
                   <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {data.topClientes.map((c,i)=>{
-                const pct = (c.montoTotal / data.ingresos.total * 100).toFixed(1)
+                const pct = (totalRanking ? 100 * c.montoTotal / totalRanking : 0).toFixed(1)
                 return (
-                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={JSON.stringify([c.razon_social, c.tipo])} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-[12px] font-bold text-gray-400">#{i+1}</td>
                     <td className="px-4 py-3 font-semibold text-[12px] text-navy-500">{c.razon_social}</td>
                     <td className="px-4 py-3">
@@ -447,7 +455,7 @@ export default function ReportesPage() {
               </thead>
               <tbody>
                 {data.porMercaderia.map((m,i)=>(
-                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={m.tipo} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-3 py-2.5 text-[12px] font-medium text-gray-700">{m.tipo}</td>
                     <td className="px-3 py-2.5 text-[12px] text-gray-600">{m.cantidad}</td>
                     <td className="px-3 py-2.5 text-[12px] text-gray-600">{m.peso_total} kg</td>

@@ -1,7 +1,8 @@
+import { solicitudUuid } from '@/lib/archivos'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { User } from '@/types'
-import type { Notificacion } from '@/lib/data'
+import type { Notificacion } from '@/lib/demo/data'
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 interface AuthStore {
@@ -114,7 +115,7 @@ export const useRecepcionStore = create<RecepcionStore>((set) => ({
   mercaderias:      [],
   addGuia:          (codigo) => set((s) => ({ guias: [...s.guias, { codigo }] })),
   removeGuia:       (idx)    => set((s) => ({ guias: s.guias.filter((_, i) => i !== idx) })),
-  addMercaderia:    (m)      => set((s) => ({ mercaderias: [...s.mercaderias, m] })),
+  addMercaderia:    (m)      => set((s) => ({ mercaderias: [...s.mercaderias, { ...m, id: solicitudUuid() }] })),
   removeMercaderia: (idx)    => set((s) => ({ mercaderias: s.mercaderias.filter((_, i) => i !== idx) })),
   updateMercaderia: (idx, m) => set((s) => ({
     mercaderias: s.mercaderias.map((x, i) => i === idx ? { ...x, ...m } : x)

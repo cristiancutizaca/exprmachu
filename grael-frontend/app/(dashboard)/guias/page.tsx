@@ -16,8 +16,8 @@ import type { Ticket } from '@/types'
 type Point = { ubigeo: string; direccion: string; codigoLocal?: string; rucLocal?: string }
 type Driver = { dni: string; licencia: string; nombres: string; apellidos: string }
 type Vehicle = { placa: string; tuc?: string }
-type Reference = { tipo: string; numero: string; rucEmisor: string }
-type Item = { descripcion: string; cantidad: string; unidad: string }
+type Reference = { draftId?: string; tipo: string; numero: string; rucEmisor: string }
+type Item = { draftId?: string; descripcion: string; cantidad: string; unidad: string }
 type Party = { tipoDocumento: '1' | '6'; documento: string; razonSocial: string; registroMtc?: string }
 type Draft = {
   serie: string; fechaTraslado: string; partida: Point; llegada: Point; pesoBruto: string; unidadPeso: 'KGM' | 'TNE'
@@ -33,8 +33,8 @@ type Document = {
 }
 type ManifestOption = { id: string; codigo: string; tickets?: Array<{ id: string }>; estado: string }
 
-const blankItem = (): Item => ({ descripcion: '', cantidad: '', unidad: '' })
-const blankReference = (): Reference => ({ tipo: '09', numero: '', rucEmisor: '' })
+const blankItem = (): Item => ({ draftId: solicitudUuid(), descripcion: '', cantidad: '', unidad: '' })
+const blankReference = (): Reference => ({ draftId: solicitudUuid(), tipo: '09', numero: '', rucEmisor: '' })
 const blankPoint = (): Point => ({ ubigeo: '', direccion: '' })
 const blankParty = (): Party => ({ tipoDocumento: '6', documento: '', razonSocial: '' })
 const draft = (): Draft => ({
@@ -73,7 +73,11 @@ function PartyFields({ label, party, onChange, allowDni = false, mtc = false }: 
 }
 
 function FormGuia({ selected, manifestFilter, onSaved, onClose }: { selected?: Document; manifestFilter?: string; onSaved: (doc: Document) => void; onClose: () => void }) {
-  const [data, setData] = useState<Draft>(() => selected?.datos?.traslado || draft())
+  const [data, setData] = useState<Draft>(() => {
+    const initial = selected?.datos?.traslado || draft()
+    return { ...initial, bienes: initial.bienes?.map(row => ({ ...row, draftId: solicitudUuid() })),
+      referencias: initial.referencias?.map(row => ({ ...row, draftId: solicitudUuid() })) }
+  })
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [kind, setKind] = useState<'31' | '09'>(selected?.tipoGuia || '31')
   const [manifest, setManifest] = useState(selected?.manifiestoId || manifestFilter || '')
@@ -95,6 +99,7 @@ function FormGuia({ selected, manifestFilter, onSaved, onClose }: { selected?: D
     Promise.allSettled([manifiestoApi.listar({ estado: 'ABIERTO', limit: 100 }), catalogosV2Api.vehiculos({ estado: 'ACTIVO' }), catalogosV2Api.conductores({ estado: 'ACTIVO' })])
       .then(([m, v, d]) => {
         if (!active) return
+        if ([m, v, d].some(result => result.status === 'rejected')) toast.error('No se pudieron cargar todos los catálogos de la guía')
         if (m.status === 'fulfilled') setManifests(m.value.data.data || [])
         if (v.status === 'fulfilled') setVehicles(Array.isArray(v.value.data) ? v.value.data : v.value.data.data || [])
         if (d.status === 'fulfilled') setDrivers(Array.isArray(d.value.data) ? d.value.data : d.value.data.data || [])
@@ -105,7 +110,7 @@ function FormGuia({ selected, manifestFilter, onSaved, onClose }: { selected?: D
   function pickTicket(value: Ticket | null) {
     setTicket(value)
     if (!value || items.length) return
-    const goods = (value.mercaderias || []).map(line => ({ descripcion: line.descripcion || line.tipo || '', cantidad: String(line.cantidad), unidad: '' }))
+    const goods = (value.mercaderias || []).map(line => ({ draftId: solicitudUuid(), descripcion: line.descripcion || line.tipo || '', cantidad: String(line.cantidad), unidad: '' }))
     set('bienes', goods)
   }
 
@@ -119,7 +124,8 @@ function FormGuia({ selected, manifestFilter, onSaved, onClose }: { selected?: D
       event.preventDefault()
       if (!selected && !ticket) return
       const payload: Record<string, unknown> = {
-        ...data, serie: data.serie.toUpperCase(), bienes: linkedGre ? [] : items,
+        ...data, serie: data.serie.toUpperCase(), bienes: linkedGre ? [] : items.map(({ descripcion, cantidad, unidad }) => ({ descripcion, cantidad, unidad })),
+        referencias: references.map(({ tipo, numero, rucEmisor }) => ({ tipo, numero, rucEmisor })),
         pagador: isCarrier ? data.pagador || 'Remitente' : undefined,
         terceroPagador: isCarrier && data.pagador === 'Tercero' ? data.terceroPagador : undefined,
         subcontratador: isCarrier && external ? data.subcontratador : undefined,
@@ -220,7 +226,7 @@ function FormGuia({ selected, manifestFilter, onSaved, onClose }: { selected?: D
 
       <section className="space-y-2">
         <div className="flex items-center justify-between"><h3 className="font-semibold text-navy-500">Documentos relacionados</h3><Button type="button" variant="outline" onClick={() => set('referencias', [...references, blankReference()])}>Agregar documento</Button></div>
-        {references.map((ref, index) => <div key={index} className="grid sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
+        {references.map((ref, index) => <div key={ref.draftId} className="grid sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-end">
           <FormField label="Tipo de documento"><Select aria-label={`Tipo relacionado ${index + 1}`} value={ref.tipo} onChange={event => updateReference(index, 'tipo', event)}>
             <option value="09">GRE remitente</option><option value="01">Factura</option><option value="03">Boleta</option><option value="04">Liquidación de compra</option><option value="12">Ticket de máquina</option><option value="31">GRE transportista</option><option value="48">Comprobante de operaciones</option>
           </Select></FormField>
@@ -232,7 +238,7 @@ function FormGuia({ selected, manifestFilter, onSaved, onClose }: { selected?: D
 
       {!linkedGre && <section className="space-y-2">
         <div className="flex items-center justify-between"><h3 className="font-semibold text-navy-500">Bienes</h3><Button type="button" variant="outline" onClick={() => set('bienes', [...items, blankItem()])}>Agregar bien</Button></div>
-        {items.map((item, index) => <div key={index} className="grid sm:grid-cols-[2fr_1fr_1fr_auto] gap-2 items-end">
+        {items.map((item, index) => <div key={item.draftId} className="grid sm:grid-cols-[2fr_1fr_1fr_auto] gap-2 items-end">
           <Field label="Descripción" required value={item.descripcion} onChange={event => updateItem(index, 'descripcion', event)}/>
           <Field label="Cantidad" required value={item.cantidad} inputMode="decimal" onChange={event => updateItem(index, 'cantidad', event)}/>
           <FormField label="Unidad"><Select aria-label={`Unidad del bien ${index + 1}`} required value={item.unidad} onChange={event => updateItem(index, 'unidad', event)}>
@@ -327,7 +333,7 @@ export default function GuiasPage() {
       {selected.ticketSunat && <p className="text-sm break-all">Ticket SUNAT {selected.ticketSunat}</p>}
       {selected.respuestaSunat && <div className="text-sm space-y-1">
         <p>{selected.respuestaSunat.codigo} {selected.respuestaSunat.mensaje}</p>
-        {selected.respuestaSunat.observaciones?.map((note, index) => <p key={index}>{note}</p>)}
+        {Array.from(new Set(selected.respuestaSunat.observaciones)).map(note => <p key={note}>{note}</p>)}
       </div>}
       <div className="flex flex-wrap gap-2">
         {manage && selected.estado === 'BORRADOR' && <>

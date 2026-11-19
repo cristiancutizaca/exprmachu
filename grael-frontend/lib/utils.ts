@@ -8,14 +8,38 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // ─── Formateo moneda ──────────────────────────────────────────────────────────
-export function formatMoney(amount: number): string {
-  return `S/ ${amount.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const soles = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+type Amount = number | string | null | undefined
+
+function parseAmount(amount: Amount): number | null {
+  if (typeof amount === 'string' && !/^-?\d+(?:\.\d+)?$/.test(amount.trim())) return null
+  if (amount == null) return null
+  const parsed = Number(amount)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
-export function formatMoneyShort(amount: number): string {
-  if (amount >= 1_000_000) return `S/ ${(amount/1_000_000).toFixed(1)}M`
-  if (amount >= 1_000)     return `S/ ${(amount/1_000).toFixed(1)}K`
-  return formatMoney(amount)
+export function formatMoney(amount: Amount): string {
+  const parsed = parseAmount(amount)
+  return parsed == null ? '—' : `S/ ${soles.format(parsed)}`
+}
+
+export function sumAmounts(amounts: Array<number | string>): number {
+  const cents = amounts.reduce<number>((sum, amount) => {
+    const value = parseAmount(amount)
+    if (value == null) throw new Error('Importe monetario inválido')
+    const next = sum + Math.round(value * 100)
+    if (!Number.isSafeInteger(next)) throw new Error('Importe fuera de rango')
+    return next
+  }, 0)
+  return cents / 100
+}
+
+export function formatMoneyShort(amount: Amount): string {
+  const value = parseAmount(amount)
+  if (value == null) return '—'
+  if (value >= 1_000_000) return `S/ ${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return `S/ ${(value / 1_000).toFixed(1)}K`
+  return formatMoney(value)
 }
 
 // ─── Fechas ───────────────────────────────────────────────────────────────────

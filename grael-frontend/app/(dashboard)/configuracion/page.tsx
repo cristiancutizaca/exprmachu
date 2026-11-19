@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useEffect, useState } from 'react'
 import {
   Settings, Save, User, MapPin, DollarSign, Truck,
@@ -27,21 +28,16 @@ type TarifaUi = {
 
 export default function ConfiguracionPage() {
   const { user, token } = useAuthStore()
-  const isDemoMode = !token || token.startsWith('demo-')
+  const isDemoMode = isDemoSession(token)
   const [seccion, setSeccion] = useState('sede')
   const [saving, setSaving]   = useState(false)
   const [saved,  setSaved]    = useState(false)
 
   // Sede
-  const [sede, setSede] = useState({
-    nombre:     'Expreso Machupicchu - Sede Cusco',
-    ruc:        '20601234567',
-    direccion:  'Av. El Sol 123, Cusco',
-    telefono:   '984512369',
-    email:      'cusco@grael.pe',
-    ciudad:     'CUSCO',
-    igv:        '18',
-  })
+  const [sede, setSede] = useState({ nombre: '', ruc: '', direccion: '', telefono: '', email: '', ciudad: '', igv: '' })
+  const [loaded, setLoaded] = useState(isDemoMode)
+  const [loadError, setLoadError] = useState('')
+  const [attempt, retry] = useState(0)
 
   // Tarifas
   const [tarifas, setTarifas] = useState<TarifaUi[]>([])
@@ -74,23 +70,30 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     if (isDemoMode) return
+    let active = true
+    setLoaded(false)
+    setLoadError('')
     Promise.all([
       configuracionApi.all(),
       catalogosV2Api.sedes(user?.sedeId ? { sedeId: user.sedeId, activo: true } : { activo: true }),
       catalogosV2Api.tarifas({ activo: true }),
     ]).then(([configResponse, sedesResponse, tarifasResponse]) => {
+      if (!active) return
       const values = configResponse.data || {}
       const site: any = sedesResponse.data?.[0]
       if (site) {
         setSedeId(site.id)
-        setSede(current => ({ ...current, nombre: site.nombre || current.nombre, ruc: site.ruc || current.ruc, direccion: site.direccion || current.direccion, telefono: site.telefono || current.telefono, email: site.correo || current.email, ciudad: site.departamento || current.ciudad }))
+        setSede(current => ({ ...current, nombre: site.nombre ?? '', ruc: site.ruc ?? '', direccion: site.direccion ?? '', telefono: site.telefono ?? '', email: site.correo ?? '', ciudad: site.departamento ?? '' }))
       }
       const realTarifas = (tarifasResponse.data || []) as TarifaUi[]
       setTarifas(realTarifas)
-      setSede(current => ({ ...current, igv: values['igv.porcentaje'] || values['sede.igv'] || current.igv }))
+      setSede(current => ({ ...current, igv: values['sistema.igv'] ?? '18' }))
       setSistema(current => ({ ...current, ...Object.fromEntries(Object.entries(values).filter(([key]) => key.startsWith('sistema.')).map(([key, value]) => [key.replace('sistema.', ''), value])) }))
-    }).catch(error => toast.error(error.response?.data?.message || 'No se pudo cargar configuración real'))
-  }, [isDemoMode, user?.sedeId])
+      setNotif(current => Object.fromEntries(Object.entries(current).map(([key, fallback]) => [key, values['notif.' + key] == null ? fallback : values['notif.' + key] === 'true'])) as typeof current)
+      setLoaded(true)
+    }).catch(error => { if (active) setLoadError(error.response?.data?.message || 'No se pudo cargar configuración real') })
+    return () => { active = false }
+  }, [isDemoMode, user?.sedeId, attempt])
 
   const handlePasswordChange = async () => {
     if (!passForm.actual || passForm.nueva.length < 8 || passForm.nueva !== passForm.confirmar) return
@@ -122,8 +125,9 @@ export default function ConfiguracionPage() {
         await new Promise(r => setTimeout(r, 350))
       } else {
         const updates = [
-          { clave: 'sede.igv', valor: sede.igv },
-          ...Object.entries(sistema).map(([clave, valor]) => ({ clave: `sistema.${clave}`, valor: String(valor) })),
+          { clave: 'sistema.igv', valor: sede.igv },
+          ...Object.entries(notif).map(([key, value]) => ({ clave: 'notif.' + key, valor: String(value) })),
+          ...Object.entries(sistema).filter(([key]) => key !== 'igv').map(([clave, valor]) => ({ clave: `sistema.${clave}`, valor: String(valor) })),
         ]
         const writes: Promise<unknown>[] = [configuracionApi.bulk(updates)]
         if (sedeId) writes.push(catalogosV2Api.actualizarSede(sedeId, { nombre: sede.nombre, ruc: sede.ruc, direccion: sede.direccion, telefono: sede.telefono, correo: sede.email, departamento: sede.ciudad }))
@@ -137,6 +141,7 @@ export default function ConfiguracionPage() {
     finally { setSaving(false) }
   }
 
+  if (!loaded) return <Card>{loadError ? <><p role="alert">{loadError}</p><Button onClick={() => retry(n => n + 1)}>Reintentar</Button></> : <p role="status">Cargando configuración…</p>}</Card>
   return (
     <div className="pb-8">
       <PageHeader
@@ -202,9 +207,7 @@ export default function ConfiguracionPage() {
                   <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.ruc} onChange={e=>setSede(s=>({...s,ruc:e.target.value}))} maxLength={11}/>
                 </FormField>
                 <FormField label="Ciudad / Sede">
-                  <Select disabled={!isDemoMode && !canEditConfiguration} value={sede.ciudad} onChange={e=>setSede(s=>({...s,ciudad:e.target.value}))}>
-                    {['CUSCO','LIMA','AREQUIPA','PIURA','PUNO'].map(c=><option key={c}>{c}</option>)}
-                  </Select>
+                  <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.ciudad} onChange={e=>setSede(s=>({...s,ciudad:e.target.value}))}/>
                 </FormField>
                 <FormField label="Dirección" className="md:col-span-2">
                   <Input disabled={!isDemoMode && !canEditConfiguration} value={sede.direccion} onChange={e=>setSede(s=>({...s,direccion:e.target.value}))}/>

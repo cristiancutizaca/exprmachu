@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useState } from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -15,7 +16,7 @@ type Estimate = { aplica: boolean; base: number; monto: number; tasa: number }
 
 export default function DetraccionPage() {
   const token = useAuthStore(state => state.token)
-  const demo = token?.startsWith('demo-')
+  const demo = isDemoSession(token)
   const [ticket, setTicket] = useState<Ticket | null>(null)
   const [importe, setImporte] = useState('')
   const [ref, setRef] = useState('')

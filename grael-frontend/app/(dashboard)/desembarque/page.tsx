@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useCallback, useEffect, useState } from 'react'
 import {
   Ship, Search, CheckCircle, AlertTriangle, Eye,
@@ -6,10 +7,10 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Card, PageHeader, FormField, Input, Select, Badge, SectionTitle } from '@/components/ui'
-import { DESEMBARQUE_DB, DESTINOS_LIST } from '@/lib/data'
+import { DESEMBARQUE_DB, DESTINOS_LIST } from '@/lib/demo/data'
 import { desembarqueApi, manifiestoApi, catalogosV2Api } from '@/lib/api'
 import { useAuthStore } from '@/store'
-import type { ItemDesembarque, EstadoDesembarque } from '@/lib/data'
+import type { ItemDesembarque, EstadoDesembarque } from '@/lib/demo/data'
 import { useConfirm } from '@/components/layout/GlobalModals'
 
 const ESTADO_STYLE: Record<EstadoDesembarque, { label:string; bg:string; text:string }> = {
@@ -132,8 +133,9 @@ function ModalObservacion({ item, onConfirm, onClose }: {
 }
 
 // ─── Fila de item ─────────────────────────────────────────────────────────────
-function DesembarqueRow({ item, onVerificar, onEntregar, onObservar }: {
+function DesembarqueRow({ item, historico, onVerificar, onEntregar, onObservar }: {
   item: ItemDesembarque
+  historico: boolean
   onVerificar: () => void; onEntregar: () => void; onObservar: () => void
 }) {
   const est = ESTADO_STYLE[item.estado]
@@ -172,21 +174,21 @@ function DesembarqueRow({ item, onVerificar, onEntregar, onObservar }: {
       </td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {item.estado === 'PENDIENTE_VERIFICACION' && (
+          {historico && item.estado === 'PENDIENTE_VERIFICACION' && (
             <button onClick={onVerificar}
               className="px-2.5 py-1.5 bg-blue-600 text-white text-[11px] rounded
                          hover:bg-blue-700 transition-colors flex items-center gap-1 font-medium">
               <Eye size={11}/> Verificar
             </button>
           )}
-          {(item.estado === 'VERIFICADO' || item.estado === 'PENDIENTE_VERIFICACION') && (
+          {historico && (item.estado === 'VERIFICADO' || item.estado === 'PENDIENTE_VERIFICACION') && (
             <button onClick={onEntregar}
               className="px-2.5 py-1.5 bg-green-600 text-white text-[11px] rounded
                          hover:bg-green-700 transition-colors flex items-center gap-1 font-medium">
               <CheckCircle size={11}/> Entregar
             </button>
           )}
-          {item.estado !== 'ENTREGADO' && item.estado !== 'OBSERVADO' && (
+          {historico && item.estado !== 'ENTREGADO' && item.estado !== 'OBSERVADO' && (
             <button onClick={onObservar}
               className="px-2.5 py-1.5 bg-red-50 text-red-600 text-[11px] rounded border border-red-200
                          hover:bg-red-100 transition-colors flex items-center gap-1">
@@ -285,11 +287,12 @@ function PhysicalUnloadingPanel({ isDemoMode }: { isDemoMode: boolean }) {
 // ─── PÁGINA ───────────────────────────────────────────────────────────────────
 export default function DesembarquePage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [items, setItems]          = useState<ItemDesembarque[]>(DESEMBARQUE_DB)
+  const isDemoMode = isDemoSession(token)
+  const [items, setItems]          = useState<ItemDesembarque[]>(isDemoMode ? DESEMBARQUE_DB : [])
   const [loading, setLoading]      = useState(false)
   const [entregaItem, setEntrega]  = useState<ItemDesembarque | null>(null)
   const [obsItem,     setObs]      = useState<ItemDesembarque | null>(null)
+  const [historico, setHistorico] = useState(false)
   const [filtroEstado, setFiltro]  = useState<string>('')
   const [filtroTicket, setFiltroTicket] = useState('')
   const [filtroDestinatario, setFiltroDestinatario] = useState('')
@@ -336,7 +339,7 @@ export default function DesembarquePage() {
   const handleVerificar = async (item: ItemDesembarque) => {
     try {
       if (isDemoMode) update(item.id, { estado: 'VERIFICADO' })
-      else { await desembarqueApi.verificar(item.id); await cargarDesembarques() }
+      else { await desembarqueApi.verificar(item.id, historico); await cargarDesembarques() }
       toast.success(`Ticket ${item.numeroTicket} verificado — listo para entrega`)
     } catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo verificar el desembarque') }
   }
@@ -345,7 +348,7 @@ export default function DesembarquePage() {
     setEntrega(null)
     try {
       if (isDemoMode) update(item.id, { estado: 'ENTREGADO', horaEntrega: new Date().toLocaleString('es-PE'), observacion: obs || undefined })
-      else { await desembarqueApi.entregar(item.id, { dniRecibe, nombreRecibe, observacion: obs }); await cargarDesembarques() }
+      else { await desembarqueApi.entregar(item.id, { dniRecibe, nombreRecibe, observacion: obs }, historico); await cargarDesembarques() }
       toast.success(`Entrega registrada para ticket ${item.numeroTicket}`)
     } catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo registrar la entrega') }
   }
@@ -354,7 +357,7 @@ export default function DesembarquePage() {
     setObs(null)
     try {
       if (isDemoMode) update(item.id, { estado: 'OBSERVADO', observacion })
-      else { await desembarqueApi.observar(item.id, observacion); await cargarDesembarques() }
+      else { await desembarqueApi.observar(item.id, observacion, historico); await cargarDesembarques() }
       toast.error(`Observación registrada en ${item.numeroTicket}`)
     } catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo registrar la observación') }
   }
@@ -417,6 +420,10 @@ export default function DesembarquePage() {
         </div>
       </Card>
 
+      {!isDemoMode && <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={historico} onChange={e => setHistorico(e.target.checked)} />
+        Habilitar operaciones históricas por ticket. Para carga actual, use el desembarque físico por bulto.
+      </label>}
       {/* Tabla */}
       <Card padding={false} className="overflow-hidden">
         <div className="overflow-x-auto">
@@ -435,7 +442,7 @@ export default function DesembarquePage() {
                   <p className="text-[13px]">No hay items en este estado</p>
                 </td></tr>
               ) : filtrados.map(item => (
-                <DesembarqueRow key={item.id} item={item}
+                <DesembarqueRow key={item.id} item={item} historico={isDemoMode || historico}
                   onVerificar={() => handleVerificar(item)}
                   onEntregar={() => setEntrega(item)}
                   onObservar={() => setObs(item)}

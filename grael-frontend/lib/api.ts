@@ -150,10 +150,10 @@ export const guiasApi = {
 }
 
 export const desembarqueApi = {
-  listar: (params?: { estado?: string; ticketId?: string }) => api.get('/desembarque', { params }),
-  verificar: (id: string) => api.patch(`/desembarque/${id}/verificar`),
-  entregar: (id: string, data: { dniRecibe: string; nombreRecibe: string; observacion?: string }) => api.patch(`/desembarque/${id}/entregar`, data),
-  observar: (id: string, observacion: string) => api.patch(`/desembarque/${id}/observar`, { observacion }),
+  listar: (params?: { estado?: string; ticketId?: string; limit?: number }) => api.get('/desembarque', { params }),
+  verificar: (id: string, legacy = false) => api.patch(`/desembarque/${id}/verificar`, {}, { params: { legacy } }),
+  entregar: (id: string, data: { dniRecibe: string; nombreRecibe: string; observacion?: string }, legacy = false) => api.patch(`/desembarque/${id}/entregar`, data, { params: { legacy } }),
+  observar: (id: string, observacion: string, legacy = false) => api.patch(`/desembarque/${id}/observar`, { observacion }, { params: { legacy } }),
   abrirSesion: (data: { manifiestoId: string; almacenDestinoId: string; ubicacionDestinoId: string; observacion?: string }) => api.post('/desembarque/sesiones', data),
   resumenSesion: (id: string) => api.get(`/desembarque/sesiones/${id}/resumen`),
   escanearBulto: (id: string, data: { codigo: string; estado?: string; observacion?: string }) => api.post(`/desembarque/sesiones/${id}/bultos`, data),
@@ -195,6 +195,7 @@ export const reportesApi = {
 }
 
 export const repartoApi = {
+  recursos: (sedeId: string) => api.get<{ vehiculos: Array<{ id: string; placa: string }>; repartidores: Array<{ id: string; nombre: string; apellido: string }> }>('/reparto/recursos', { params: { sedeId } }),
   listar: (params?: { sedeId?: string; estado?: string; fecha?: string }) => api.get('/reparto', { params }),
   detalle: (id: string) => api.get(`/reparto/${id}`),
   crear: (data: any) => api.post('/reparto', data),
@@ -289,9 +290,9 @@ export const destinosApi = {
 // ─── MERCADERÍA ───────────────────────────────────────────────────────────────
 export const mercaderiaApi = {
   tiposLista: () => api.get<string[]>('/mercaderia/tipos'),
-  calcularCosto: (tipo: string, peso: number) =>
+  calcularCosto: (tipo: string, peso: number, origenId: string, destinoId: string, tipoEntrega: string) =>
     api.get<{ costoKg: number; subTotal: number; igv: number; total: number }>(
-      '/mercaderia/calcular', { params: { tipo, peso } }
+      '/mercaderia/calcular', { params: { tipo, peso, origenId, destinoId, tipoEntrega } }
     ),
 }
 

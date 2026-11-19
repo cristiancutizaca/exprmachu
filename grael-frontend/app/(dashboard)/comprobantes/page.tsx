@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useEffect, useRef, useState } from 'react'
 import { Download, Eye, FileText, Printer, RefreshCw, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -8,7 +9,7 @@ import TicketFiscalSelector from '@/components/ui/TicketFiscalSelector'
 import SerieFiscalForm from '@/components/ui/SerieFiscalForm'
 import { comprobantesApi } from '@/lib/api'
 import { abrirArchivo, mensajeApi, solicitudUuid } from '@/lib/archivos'
-import { COMPROBANTES_DB } from '@/lib/data'
+import { COMPROBANTES_DB } from '@/lib/demo/data'
 import { hoyPeru } from '@/lib/peru-time'
 import { exportToCSV, formatMoney } from '@/lib/utils'
 import { useAuthStore } from '@/store'
@@ -76,7 +77,7 @@ function CpeForm({ onDone }: { onDone: () => void }) {
 
 export default function ComprobantesPage() {
   const { token, user } = useAuthStore()
-  const demo = token?.startsWith('demo-') && process.env.NODE_ENV !== 'production'
+  const demo = isDemoSession(token) && process.env.NODE_ENV !== 'production'
   const canEmit = Boolean(user && ['SUPERADMIN','SUPERVISOR','ADMIN_SEDE','CAJERO'].includes(user.rol) && !demo && token)
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState(emptySummary)
