@@ -1,11 +1,12 @@
 'use client'
 
+import { isDemoSession } from '@/lib/demo-session'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle, Plus, Search, Truck, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Card, EmptyState, FormField, Input, Modal, PageHeader, Select, StatusBadge } from '@/components/ui'
 import { entregasApi } from '@/lib/api'
-import { TICKETS_DB } from '@/lib/data'
+import { TICKETS_DB } from '@/lib/demo/data'
 import { useAuthStore } from '@/store'
 
 interface DeliveryRow {
@@ -32,8 +33,8 @@ const DEMO_DELIVERIES: DeliveryRow[] = TICKETS_DB.slice(0, 4).map((ticket, index
 
 export default function EntregasPage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [rows, setRows] = useState<DeliveryRow[]>(DEMO_DELIVERIES)
+  const isDemoMode = isDemoSession(token)
+  const [rows, setRows] = useState<DeliveryRow[]>(isDemoMode ? DEMO_DELIVERIES : [])
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState('')
   const [query, setQuery] = useState('')
@@ -41,6 +42,11 @@ export default function EntregasPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [pod, setPod] = useState({ nombreReceptor: '', documentoReceptor: '', observacion: '' })
   const [createForm, setCreateForm] = useState({ ticketId: '', bultoId: '', tipo: 'REPARTO' })
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('ticketId')
+    if (id) { setCreateForm(form => ({ ...form, ticketId: id })); setShowCreate(true) }
+  }, [])
 
   const load = useCallback(async () => {
     if (isDemoMode) { setRows(DEMO_DELIVERIES); return }

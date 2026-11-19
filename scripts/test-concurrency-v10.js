@@ -65,6 +65,10 @@ if (deliveryTicket && deliveryBulto) {
 
 const executed = results.filter(row => row.status !== 'SKIP')
 const singleWinner = new Set(['cash_open_same_cashier', 'cash_close_same_session', 'payment_same_ticket', 'delivery_duplicate_same_bulto'])
-const failures = executed.filter(row => row.serverErrors > 0 || (singleWinner.has(row.name) && row.accepted > 1) || (row.uniqueNumbers > 0 && row.uniqueNumbers < row.accepted))
+const failures = results.filter(row => {
+  if (row.status === 'SKIP' || row.accepted + row.rejected !== row.total) return true
+  if (singleWinner.has(row.name)) return row.accepted !== 1
+  return row.accepted !== row.total || row.uniqueNumbers !== row.accepted
+})
 console.log(JSON.stringify({ width: Number(process.env.CONCURRENCY_WIDTH || 10), executed: executed.length, skipped: results.length - executed.length, failures: failures.length, results }, null, 2))
 if (failures.length) process.exit(1)

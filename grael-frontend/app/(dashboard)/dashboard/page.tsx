@@ -1,5 +1,6 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
+import { isDemoSession } from '@/lib/demo-session'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Truck, Search, Ship, Calculator, TrendingUp, TrendingDown,
@@ -8,9 +9,12 @@ import {
 } from 'lucide-react'
 import { Card, Badge, Button } from '@/components/ui'
 import { BrandHero } from '@/components/brand/BrandIdentity'
-import { getKPIs, TICKETS_DB, DESEMBARQUE_DB, PAGOS_HOY } from '@/lib/data'
+import { getKPIs, TICKETS_DB, DESEMBARQUE_DB, PAGOS_HOY } from '@/lib/demo/data'
 import { desembarqueApi, reportesApi, ticketsApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
+import { formatMoney } from '@/lib/utils'
+import { hoyPeru } from '@/lib/peru-time'
+import { canAccessRoute } from '@/components/layout/Sidebar'
 import type { Ticket } from '@/types'
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -65,7 +69,7 @@ function TicketMini({ ticket }: { ticket: Ticket }) {
         </p>
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-[12px] font-bold text-gray-700">S/ {ticket.total.toFixed(0)}</p>
+        <p className="text-[12px] font-bold text-gray-700">{formatMoney(ticket.total)}</p>
         <p className="text-[10px] text-gray-400">{ticket.origen.nombre}→{ticket.destino.nombre}</p>
       </div>
       {!ticket.pagado && !ticket.anulado && (
@@ -79,47 +83,82 @@ function TicketMini({ ticket }: { ticket: Ticket }) {
 export default function DashboardPage() {
   const router = useRouter()
   const { user, token } = useAuthStore()
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [loading, setLoading] = useState(false)
-  const [kpi, setKpi] = useState<any>(() => getKPIs())
-  const [recentTickets, setRecentTickets] = useState<Ticket[]>(() => [...TICKETS_DB].sort((a, b) => b.fechaEmision.localeCompare(a.fechaEmision)).slice(0, 5))
-  const [desembarques, setDesembarques] = useState<any[]>(DESEMBARQUE_DB.slice(0, 3))
+  const isDemoMode = isDemoSession(token)
+  const canReport = canAccessRoute(user?.rol, '/reportes')
+  const canUnload = canAccessRoute(user?.rol, '/desembarque')
+  const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
+  const [error, setError] = useState('')
+  const [kpi, setKpi] = useState<(ReturnType<typeof getKPIs> & {
+    cobradoHoy?: number; cobrosHoy?: number; porMetodoHoy?: Array<{ metodo: string; monto: number }>
+  }) | null>(null)
+  const [recentTickets, setRecentTickets] = useState<Ticket[]>([])
+  const [desembarques, setDesembarques] = useState<Array<Pick<typeof DESEMBARQUE_DB[number],
+    'id' | 'numeroTicket' | 'destinatario' | 'bultos' | 'peso' | 'estado'>>>([])
+  const [pendDesembarque, setPendDesembarque] = useState(0)
+  const [refresh, setRefresh] = useState(0)
 
-  const loadDashboard = useCallback(async () => {
-    if (isDemoMode) { setKpi(getKPIs()); setRecentTickets([...TICKETS_DB].sort((a, b) => b.fechaEmision.localeCompare(a.fechaEmision)).slice(0, 5)); setDesembarques(DESEMBARQUE_DB.slice(0, 3)); return }
-    setLoading(true)
-    try {
-      const now = new Date()
-      const [dashboardResponse, monthlyResponse, ticketsResponse, desembarqueResponse] = await Promise.all([
-        reportesApi.dashboard(), reportesApi.resumenMes(now.getFullYear(), now.getMonth() + 1),
-        ticketsApi.buscar({}, 1, 5), desembarqueApi.listar({ estado: 'PENDIENTE_VERIFICACION' }),
-      ])
-      const dashboard = dashboardResponse.data
-      const monthly = monthlyResponse.data
-      const ticketRows = ticketsResponse.data?.data || []
-      const desembarqueRows = desembarqueResponse.data?.data || desembarqueResponse.data || []
-      setKpi({ ...dashboard, ticketsHoy: dashboard.ticketsHoy ?? dashboard.hoy ?? 0, totalMes: monthly.tickets?.total || 0, cobradosMes: monthly.ingresos?.total || 0, montoPendiente: dashboard.montoPendiente ?? monthly.tickets?.montoPendiente ?? 0, porMetodoHoy: dashboard.porMetodoHoy || [] })
-      setRecentTickets(ticketRows)
-      setDesembarques(desembarqueRows.slice(0, 3).map((item: any) => ({ numeroTicket: item.ticket?.numeroTicket || item.ticketId, destinatario: item.ticket?.destinatario?.razonSocial || '—', bultos: item.ticket?.bultos?.length || 0, peso: item.ticket?.bultos?.reduce((sum: number, bulto: any) => sum + Number(bulto.pesoReal || 0), 0) || 0, estado: item.estado })))
-    } catch (error: any) {
-      console.error(error)
-    } finally { setLoading(false) }
-  }, [isDemoMode])
+  useEffect(() => {
+    let active = true
+    async function load() {
+      setLoading(true)
+      setError('')
+      try {
+        if (isDemoMode) {
+          setHasLoaded(true)
+          setKpi(getKPIs())
+          setRecentTickets([...TICKETS_DB].sort((a, b) => b.fechaEmision.localeCompare(a.fechaEmision)).slice(0, 5))
+          const pending = DESEMBARQUE_DB.filter(d => d.estado === 'PENDIENTE_VERIFICACION')
+          setDesembarques(pending.slice(0, 3))
+          setPendDesembarque(pending.length)
+          return
+        }
+        const [year, month] = hoyPeru().split('-').map(Number)
+        const [report, monthly, tickets, unloading] = await Promise.all([
+          canReport ? reportesApi.dashboard() : null,
+          canReport ? reportesApi.resumenMes(year, month) : null,
+          ticketsApi.buscar({}, 1, 5),
+          canUnload ? desembarqueApi.listar({ estado: 'PENDIENTE_VERIFICACION', limit: 3 }) : null,
+        ])
+        if (!active) return
+        if (report && monthly) setKpi({ ...report.data, ticketsHoy: report.data.hoy,
+          totalMes: monthly.data.tickets.total, cobradosMes: monthly.data.ingresos.total })
+        setHasLoaded(true)
+        setRecentTickets(tickets.data.data)
+        if (unloading) {
+          setPendDesembarque(unloading.data.total)
+          setDesembarques(unloading.data.data.map((item: { id: string; ticket: Ticket; estado: string }) => ({
+            id: item.id, estado: item.estado, numeroTicket: item.ticket.numeroTicket,
+            destinatario: item.ticket.destinatario?.razonSocial || '—',
+            bultos: item.ticket.bultos?.length ?? 0,
+            peso: item.ticket.bultos?.reduce((sum, bulto) => sum + Number(bulto.pesoReal ?? 0), 0) ?? 0,
+          })))
+        }
+      } catch (error: any) {
+        if (active) setError(error.response?.data?.message || 'No se pudo cargar el dashboard')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    void load()
+    return () => { active = false }
+  }, [canReport, canUnload, isDemoMode, refresh])
 
-  useEffect(() => { void loadDashboard() }, [loadDashboard])
+  const loadDashboard = () => setRefresh(value => value + 1)
+  if (loading && !hasLoaded) return <p role="status">Cargando el dashboard…</p>
+  if (error) return <Card><p role="alert">{error}</p><Button onClick={loadDashboard}>Reintentar</Button></Card>
 
   const greeting = () => {
-    const h = new Date().getHours()
+    const h = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Lima', hour: '2-digit' }).format(new Date()))
     if (h < 12) return 'Buenos días'
     if (h < 19) return 'Buenas tardes'
     return 'Buenas noches'
   }
 
-  const totalCajaDia = isDemoMode ? PAGOS_HOY.reduce((s, p) => s + p.monto, 0) : Number(kpi.cobradoHoy || 0)
-  const pendDesembarque = isDemoMode ? DESEMBARQUE_DB.filter(d => d.estado === 'PENDIENTE_VERIFICACION').length : Number(kpi.pendienteEstado || 0)
+  const totalCajaDia = isDemoMode ? PAGOS_HOY.reduce((s, p) => s + p.monto, 0) : Number(kpi?.cobradoHoy ?? 0)
   const paymentBreakdown = isDemoMode
     ? (['EFECTIVO', 'TRANSFERENCIA', 'YAPE', 'TARJETA'] as const).map(metodo => ({ metodo, monto: PAGOS_HOY.filter(p => p.metodoPago === metodo).reduce((s, p) => s + p.monto, 0) }))
-    : (kpi.porMetodoHoy || [])
+    : (kpi?.porMetodoHoy || [])
 
   return (
     <div className="pb-8 space-y-5">
@@ -131,7 +170,7 @@ export default function DashboardPage() {
         icon={Truck}
         meta={<span>{new Date().toLocaleDateString('es-PE',{ weekday:'long', year:'numeric', month:'long', day:'numeric', timeZone:'America/Lima' })} · Sede {user?.sede || 'asignada'} · {isDemoMode ? 'MODO DEMO · Datos de ejemplo' : loading ? 'Actualizando información' : 'Sesión real'}</span>}
         actions={<>
-          <Button variant="primary" size="md" icon={<Plus size={15}/>} onClick={() => router.push('/recepcion')}>Nueva recepción</Button>
+          {canAccessRoute(user?.rol, '/recepcion') && <Button variant="primary" size="md" icon={<Plus size={15}/>} onClick={() => router.push('/recepcion')}>Nueva recepción</Button>}
           <button className="inline-flex items-center gap-2 rounded-lg border border-white/35 bg-white/10 px-4 py-2.5 text-[12px] font-bold text-white hover:bg-white/20 transition-colors" onClick={() => router.push('/busqueda')}><Search size={14}/>Buscar ticket</button>
         </>}
       />
@@ -141,20 +180,22 @@ export default function DashboardPage() {
       </div>
 
       {/* KPIs principales */}
+      {kpi && <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Tickets hoy"          value={kpi.ticketsHoy}       icon={Truck}       color="bg-[#0e3257]"      onClick={() => router.push('/busqueda')}/>
-        <KpiCard label="Cobrado hoy"           value={`S/ ${totalCajaDia.toLocaleString('es-PE',{minimumFractionDigits:2})}`} icon={Banknote}    color="bg-green-700"      onClick={() => router.push('/caja-diaria')}/>
-        <KpiCard label="Pend. de cobro"        value={kpi.pendientesCobro}  icon={AlertCircle} color="bg-amber-500" sub={`S/ ${kpi.montoPendiente.toLocaleString('es-PE',{minimumFractionDigits:0})}`} onClick={() => router.push('/busqueda')}/>
+        <KpiCard label="Cobrado hoy"           value={formatMoney(totalCajaDia)} icon={Banknote}    color="bg-green-700"      onClick={() => router.push('/caja-diaria')}/>
+        <KpiCard label="Pend. de cobro"        value={kpi.pendientesCobro}  icon={AlertCircle} color="bg-amber-500" sub={formatMoney(kpi.montoPendiente)} onClick={() => router.push('/busqueda')}/>
         <KpiCard label="En tránsito"           value={kpi.enTransito}       icon={RefreshCw}   color="bg-[#12649a]"  onClick={() => router.push('/transbordo')}/>
       </div>
 
       {/* Segunda fila KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Para desembarque"      value={kpi.desembarque}      icon={Ship}        color="bg-indigo-600" onClick={() => router.push('/desembarque')}/>
-        <KpiCard label="Pendientes verificar"  value={pendDesembarque}      icon={Package}     color="bg-purple-600" onClick={() => router.push('/desembarque')}/>
+        {canUnload && <KpiCard label="Pendientes verificar"  value={pendDesembarque}      icon={Package}     color="bg-purple-600" onClick={() => router.push('/desembarque')}/>}
         <KpiCard label="Total tickets mes"     value={kpi.totalMes}         icon={BarChart2}   color="bg-teal-600"   onClick={() => router.push('/busqueda')}/>
-        <KpiCard label="Cobrado este mes"      value={`S/ ${kpi.cobradosMes.toLocaleString('es-PE',{minimumFractionDigits:0})}`} icon={TrendingUp} color="bg-emerald-600" onClick={() => router.push('/caja-diaria')}/>
+        <KpiCard label="Cobrado este mes"      value={formatMoney(kpi.cobradosMes)} icon={TrendingUp} color="bg-emerald-600" onClick={() => router.push('/caja-diaria')}/>
       </div>
+      </>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
@@ -171,6 +212,7 @@ export default function DashboardPage() {
                 Ver todos <ArrowRight size={11}/>
               </button>
             </div>
+            {!recentTickets.length && <p className="p-4 text-sm text-gray-500">Sin tickets registrados.</p>}
             {recentTickets.map(t => <TicketMini key={t.id} ticket={t}/>)}
           </Card>
         </div>
@@ -178,13 +220,13 @@ export default function DashboardPage() {
         {/* Panel derecho */}
         <div className="space-y-4">
           {/* Caja del día resumen */}
-          <Card>
+          {kpi && <Card>
             <div className="flex items-center gap-2 mb-3">
               <Calculator size={14} className="text-gray-400"/>
               <span className="text-[13px] font-semibold text-gray-700">Caja de hoy</span>
             </div>
             <p className="text-[28px] font-black text-green-600">
-              S/ {totalCajaDia.toLocaleString('es-PE',{minimumFractionDigits:2})}
+              {formatMoney(totalCajaDia)}
             </p>
             <p className="text-[11px] text-gray-400 mt-0.5">{isDemoMode ? PAGOS_HOY.length : Number(kpi.cobrosHoy || 0)} cobros realizados</p>
             <div className="mt-3 space-y-2">
@@ -201,7 +243,7 @@ export default function DashboardPage() {
                   <div key={m}>
                     <div className="flex justify-between text-[10px] mb-0.5">
                       <span className="text-gray-500">{m}</span>
-                      <span className="font-medium text-gray-700">S/ {monto.toFixed(2)}</span>
+                      <span className="font-medium text-gray-700">{formatMoney(monto)}</span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className={`h-full ${colors[m]} rounded-full`} style={{width:`${pct}%`}}/>
@@ -214,10 +256,10 @@ export default function DashboardPage() {
               className="mt-3 w-full text-center text-[11px] text-sky-brand hover:underline flex items-center justify-center gap-1">
               Ver caja completa <ArrowRight size={11}/>
             </button>
-          </Card>
+          </Card>}
 
           {/* Pendientes de desembarque */}
-          <Card>
+          {canUnload && <Card>
             <div className="flex items-center gap-2 mb-3">
               <Ship size={14} className="text-gray-400"/>
               <span className="text-[13px] font-semibold text-gray-700">Desembarque</span>
@@ -228,6 +270,7 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="space-y-2">
+              {!desembarques.length && <p className="text-xs text-gray-500">Sin desembarques pendientes.</p>}
               {desembarques.map(d => (
                 <div key={d.id} className="flex items-start gap-2.5 py-1.5 border-b border-gray-50 last:border-0">
                   <div className={`w-2 h-2 rounded-full mt-1 flex-shrink-0 ${
@@ -252,7 +295,7 @@ export default function DashboardPage() {
               className="mt-2 w-full text-center text-[11px] text-sky-brand hover:underline flex items-center justify-center gap-1">
               Ir a desembarque <ArrowRight size={11}/>
             </button>
-          </Card>
+          </Card>}
         </div>
       </div>
 
@@ -267,7 +310,7 @@ export default function DashboardPage() {
             { label:'Manifiesto',        Icon:Package,     href:'/manifiesto',  color:'bg-teal-600',   tip:'' },
             { label:'Caja Diaria',       Icon:Calculator,  href:'/caja-diaria', color:'bg-green-600',  tip:'Ctrl+4' },
             { label:'Comprobantes',      Icon:CheckCircle, href:'/comprobantes',color:'bg-purple-600', tip:'' },
-          ].map(({ label, Icon, href, color, tip }) => (
+          ].filter(item => canAccessRoute(user?.rol, item.href)).map(({ label, Icon, href, color, tip }) => (
             <button key={href} onClick={() => router.push(href)}
               className="flex flex-col items-center gap-2 p-4 bg-white rounded-2xl border border-[#d9e6f0]
                          hover:border-sky-brand hover:shadow-md transition-all group">

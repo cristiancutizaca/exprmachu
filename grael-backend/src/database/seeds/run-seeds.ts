@@ -19,7 +19,7 @@ import { TrackingEvento, TipoTrackingEvento } from '../entities/tracking-evento.
 import { Entrega, EstadoEntrega, TipoEntregaV2 } from '../entities/entrega.entity'
 
 async function runSeeds() {
-  if (process.env.NODE_ENV === 'production') throw new Error('El seed de demostración requiere una base de pruebas')
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEMO_SEED !== 'true' || !/^exprmachu_test_/.test(process.env.DB_NAME || '')) throw new Error('El seed de demostración requiere una base de pruebas')
   await AppDataSource.initialize()
   console.log('📦 Conectado a PostgreSQL. Iniciando seeds...\n')
 
@@ -29,7 +29,7 @@ async function runSeeds() {
   try {
     // ── 1. DESTINOS ───────────────────────────────────────────────────────────
     console.log('  → Sembrando destinos...')
-    const destinoRepo = AppDataSource.getRepository(Destino)
+    const destinoRepo = queryRunner.manager.getRepository(Destino)
     const destinosData = [
       { nombre:'CUSCO',        codigo:'CUS', departamento:'Cusco',        provincia:'Cusco' },
       { nombre:'LIMA',         codigo:'LIM', departamento:'Lima',         provincia:'Lima' },
@@ -56,9 +56,9 @@ async function runSeeds() {
 
     // ── 1.1 SEDES Y ALMACENES V2 ─────────────────────────────────────────────
     console.log('  → Sembrando sedes y almacenes V2...')
-    const sedeRepo = AppDataSource.getRepository(Sede)
-    const almacenRepo = AppDataSource.getRepository(Almacen)
-    const ubicacionRepo = AppDataSource.getRepository(UbicacionAlmacen)
+    const sedeRepo = queryRunner.manager.getRepository(Sede)
+    const almacenRepo = queryRunner.manager.getRepository(Almacen)
+    const ubicacionRepo = queryRunner.manager.getRepository(UbicacionAlmacen)
     const sedes: Record<string, Sede> = {}
     const sedesData = [
       { codigo:'CUS', nombre:'GRAEL Agencia Cusco', tipo:TipoSede.AGENCIA, departamento:'Cusco', provincia:'Cusco', distrito:'Cusco', direccion:'Av. El Sol 123' },
@@ -97,7 +97,7 @@ async function runSeeds() {
 
     // ── 2. USUARIOS ───────────────────────────────────────────────────────────
     console.log('  → Sembrando usuarios...')
-    const usuarioRepo = AppDataSource.getRepository(Usuario)
+    const usuarioRepo = queryRunner.manager.getRepository(Usuario)
     const usuariosData = [
       { username:'jesus.cutisaca', nombre:'JESUS SAMUEL', apellido:'CUTISACA BUSTAMANTE', email:'jesus.cutisaca@grael.pe', rol:RolUsuario.ADMIN_SEDE,  sede:'CUSCO',   password:'admin123' },
       { username:'leydy.diana',    nombre:'LEYDY DIANA',  apellido:'FLORES QUISPE',        email:'leydy.diana@grael.pe',    rol:RolUsuario.OPERADOR,    sede:'CUSCO',   password:'op123' },
@@ -127,7 +127,7 @@ async function runSeeds() {
 
     // ── 3. PROGRAMACIONES ─────────────────────────────────────────────────────
     console.log('  → Sembrando programaciones...')
-    const progRepo = AppDataSource.getRepository(Programacion)
+    const progRepo = queryRunner.manager.getRepository(Programacion)
     const progsData = [
       { codigo:'CUS-LIM-0800', origenCod:'CUS', destinoCod:'LIM', horaSalida:'08:00:00' },
       { codigo:'CUS-AQP-1000', origenCod:'CUS', destinoCod:'AQP', horaSalida:'10:00:00' },
@@ -157,7 +157,7 @@ async function runSeeds() {
 
     // ── 4. CLIENTES ───────────────────────────────────────────────────────────
     console.log('  → Sembrando clientes...')
-    const clienteRepo = AppDataSource.getRepository(Cliente)
+    const clienteRepo = queryRunner.manager.getRepository(Cliente)
     const clientesData = [
       { tipo:TipoCliente.JURIDICO, razonSocial:'CILMEC S.A.C.',               ruc:'20613042246', telefono:'999999999', email:'cilmec@email.com',     direccion:'AV. INDUSTRIAL 123 - PIURA' },
       { tipo:TipoCliente.NATURAL,  razonSocial:'LUIS ENRIQUE PAZ UPIACHIHUA',  dni:'75471192',    telefono:'925202116', email:'lpaz@email.com',       direccion:'JR. PUNO 234 - CUSCO' },
@@ -191,9 +191,9 @@ async function runSeeds() {
 
     // ── 5. TICKETS ────────────────────────────────────────────────────────────
     console.log('  → Sembrando tickets...')
-    const ticketRepo  = AppDataSource.getRepository(Ticket)
-    const guiaRepo    = AppDataSource.getRepository(GuiaRemision)
-    const mercRepo    = AppDataSource.getRepository(MercaderiaItem)
+    const ticketRepo  = queryRunner.manager.getRepository(Ticket)
+    const guiaRepo    = queryRunner.manager.getRepository(GuiaRemision)
+    const mercRepo    = queryRunner.manager.getRepository(MercaderiaItem)
 
     const ticketsData = [
       {
@@ -334,7 +334,7 @@ async function runSeeds() {
 
     // ── 6. PAGOS ──────────────────────────────────────────────────────────────
     console.log('  → Sembrando pagos...')
-    const pagoRepo = AppDataSource.getRepository(Pago)
+    const pagoRepo = queryRunner.manager.getRepository(Pago)
     const ticketsPagados = await ticketRepo.findBy({ pagado: true })
     for (const t of ticketsPagados) {
       const ex = await pagoRepo.findOneBy({ ticketId: t.id })
@@ -355,7 +355,7 @@ async function runSeeds() {
 
     // ── 7. DESEMBARQUES ───────────────────────────────────────────────────────
     console.log('  → Sembrando desembarques...')
-    const desembRepo = AppDataSource.getRepository(Desembarque)
+    const desembRepo = queryRunner.manager.getRepository(Desembarque)
     const ticketsDesemb = await ticketRepo.findBy({ estado: EstadoTicket.DESEMBARQUE_EN_DESTINO })
     for (const t of ticketsDesemb) {
       const ex = await desembRepo.findOneBy({ ticketId: t.id })
@@ -373,7 +373,7 @@ async function runSeeds() {
 
     // ── 8. CONFIGURACIÓN INICIAL ─────────────────────────────────────────────
     console.log('  → Sembrando configuración...')
-    const cfgRepo = AppDataSource.getRepository(Configuracion)
+    const cfgRepo = queryRunner.manager.getRepository(Configuracion)
     const configs = [
       { clave:'sede.nombre',               valor:'GRAEL - Agencia CUSCO', tipo:'string', descripcion:'Nombre de la agencia' },
       { clave:'sede.ruc',                  valor:'20601234567',           tipo:'string', descripcion:'RUC de la empresa' },
@@ -404,9 +404,9 @@ async function runSeeds() {
 
     // ── 8.1 FLOTA Y TARIFAS V2 ───────────────────────────────────────────────
     console.log('  → Sembrando vehículos, conductores y tarifas V2...')
-    const vehiculoRepo = AppDataSource.getRepository(Vehiculo)
-    const conductorRepo = AppDataSource.getRepository(Conductor)
-    const tarifaRepo = AppDataSource.getRepository(Tarifa)
+    const vehiculoRepo = queryRunner.manager.getRepository(Vehiculo)
+    const conductorRepo = queryRunner.manager.getRepository(Conductor)
+    const tarifaRepo = queryRunner.manager.getRepository(Tarifa)
     for (const data of [
       { placa:'ABC-123', marca:'Volvo', modelo:'FH', anio:2023, tipo:'CAMION', numeroEjes:3, capacidadKg:18000, estado:EstadoVehiculo.ACTIVO },
       { placa:'GRA-001', marca:'Mercedes-Benz', modelo:'Atego', anio:2022, tipo:'CAMION', numeroEjes:2, capacidadKg:12000, estado:EstadoVehiculo.ACTIVO },
@@ -426,9 +426,9 @@ async function runSeeds() {
 
     // ── 8.2 BULTOS Y TRACKING INICIAL V2 ─────────────────────────────────────
     console.log('  → Sembrando bultos y tracking inicial...')
-    const bultoRepo = AppDataSource.getRepository(Bulto)
-    const trackingRepo = AppDataSource.getRepository(TrackingEvento)
-    const entregaRepo = AppDataSource.getRepository(Entrega)
+    const bultoRepo = queryRunner.manager.getRepository(Bulto)
+    const trackingRepo = queryRunner.manager.getRepository(TrackingEvento)
+    const entregaRepo = queryRunner.manager.getRepository(Entrega)
     const allTickets = await ticketRepo.find({ relations:['mercaderias'] })
     const sedeCusco = sedes.CUS
     for (const ticket of allTickets) {

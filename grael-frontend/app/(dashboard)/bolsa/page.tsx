@@ -1,9 +1,10 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useState } from 'react'
 import { Briefcase, Plus, X, ChevronRight, Truck, Download, Package } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Card, PageHeader, FormField, Input, Select } from '@/components/ui'
-import { TICKETS_DB } from '@/lib/data'
+import { TICKETS_DB } from '@/lib/demo/data'
 import { useAuthStore } from '@/store'
 import { formatMoney, ESTADO_COLORS } from '@/lib/utils'
 import type { Ticket } from '@/types'
@@ -57,7 +58,7 @@ function ModalAgregar({ bolsa, onAdd, onClose }: { bolsa:Bolsa; onAdd:(ts:Ticket
 
 export default function BolsaPage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
+  const isDemoMode = isDemoSession(token)
   const [demoBolsas,setBolsas]=useState<Bolsa[]>(INIT)
   const bolsas = isDemoMode ? demoBolsas : []
   const [modal,setModal]=useState<Bolsa|null>(null)

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore, useUIStore, useNotifStore } from '@/store'
 import { clsx } from 'clsx'
 import toast from 'react-hot-toast'
-import type { Notificacion } from '@/lib/data'
+import type { Notificacion } from '@/lib/demo/data'
 import { authApi } from '@/lib/api'
 import { BrandSignature } from '@/components/brand/BrandIdentity'
 

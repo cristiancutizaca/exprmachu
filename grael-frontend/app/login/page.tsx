@@ -1,4 +1,5 @@
 'use client'
+import { demoEnabled } from '@/lib/demo-session'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -45,7 +46,7 @@ export default function LoginPage() {
 
   // Demo: login sin backend
   const demoLogin = () => {
-    if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') return
+    if (!demoEnabled) return
     login({
       id: '1', nombre: 'JESUS SAMUEL', apellido: 'CUTISACA BUSTAMANTE',
       username: 'jesus.cutisaca', sede: 'CUSCO', rol: 'ADMIN_SEDE',
@@ -153,7 +154,7 @@ export default function LoginPage() {
               {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
 
-            {process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && <button
+            {demoEnabled && <button
               type="button"
               onClick={demoLogin}
               className="w-full py-2.5 text-xs text-navy-500 hover:text-navy-600 transition-colors border border-dashed border-[#d7e2ec] rounded-xl hover:border-gold-brand bg-[#fbfdff]"

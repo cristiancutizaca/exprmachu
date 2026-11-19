@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm'
 import { Ticket } from './ticket.entity'
 import { Bulto } from './bulto.entity'
@@ -37,8 +38,8 @@ export class Entrega {
   @Column({ length: 30, name: 'documento_receptor', nullable: true }) documentoReceptor: string
   @Column({ type: 'text', nullable: true }) observacion: string
   @Column({ type: 'jsonb', nullable: true }) evidencia: Record<string, unknown>
-  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true }) latitud: number
-  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true }) longitud: number
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 10, scale: 7, nullable: true }) latitud: number
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 10, scale: 7, nullable: true }) longitud: number
   @Column({ type: 'text', nullable: true }) firma: string
 
   @ManyToOne(() => Sede, { nullable: true, onDelete: 'SET NULL' })

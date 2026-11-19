@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { isDemoSession } from '@/lib/demo-session'
+import { useEffect, useState } from 'react'
 import {
   Search, Plus, Download, Eye, AlignJustify, X,
   Printer, QrCode, Banknote, Trash2,
@@ -8,10 +9,11 @@ import {
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { Button, Badge, Card, PageHeader, FormField, Input, Select } from '@/components/ui'
-import { TICKETS_DB } from '@/lib/data'
+import { DESTINOS_LIST, TICKETS_DB } from '@/lib/demo/data'
 import { useAuthStore } from '@/store'
-import { ticketsApi } from '@/lib/api'
-import type { Ticket, EstadoTicket, FiltrosBusqueda } from '@/types'
+import { formatMoney } from '@/lib/utils'
+import { destinosApi, ticketsApi } from '@/lib/api'
+import type { Destino, Ticket, EstadoTicket, FiltrosBusqueda } from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const ESTADOS_MAP: Record<EstadoTicket, { label:string; variant:any }> = {
@@ -26,9 +28,9 @@ const ESTADOS_MAP: Record<EstadoTicket, { label:string; variant:any }> = {
 type TicketAction = 'pagar' | 'anular' | 'imprimir' | 'qr' | 'entregar'
 
 function ModalDetalle({ ticket, onClose, onAction }: { ticket: Ticket; onClose: () => void; onAction: (action: TicketAction) => void }) {
-  const est = ESTADOS_MAP[ticket.estado]
+  const est = ESTADOS_MAP[ticket.estado] ?? { label: ticket.estado.replaceAll('_', ' '), variant: 'info' }
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label="Detalle del ticket" className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b bg-navy-500 rounded-t-xl">
@@ -82,8 +84,8 @@ function ModalDetalle({ ticket, onClose, onAction }: { ticket: Ticket; onClose: 
             <div>
               <p className="text-[11px] font-semibold text-gray-500 mb-1.5">Guías de Remisión</p>
               <div className="flex flex-wrap gap-1.5">
-                {ticket.guiasRemision.map((g,i)=>(
-                  <span key={i} className="bg-blue-50 text-navy-500 px-2.5 py-1 rounded text-[11px] font-medium">
+                {ticket.guiasRemision.map((g)=>(
+                  <span key={g.id ?? g.codigo} className="bg-blue-50 text-navy-500 px-2.5 py-1 rounded text-[11px] font-medium">
                     {g.codigo}
                   </span>
                 ))}
@@ -103,15 +105,15 @@ function ModalDetalle({ ticket, onClose, onAction }: { ticket: Ticket; onClose: 
                 </tr>
               </thead>
               <tbody>
-                {ticket.mercaderias.map((m,i)=>(
-                  <tr key={i} className="border-b border-gray-100">
+                {ticket.mercaderias.map((m)=>(
+                  <tr key={m.id} className="border-b border-gray-100">
                     <td className="px-2.5 py-1.5 font-medium">{m.tipo}</td>
                     <td className="px-2.5 py-1.5 text-gray-600">{m.descripcion||'—'}</td>
                     <td className="px-2.5 py-1.5">{m.pesoTotal}kg</td>
                     <td className="px-2.5 py-1.5">{m.cantidad}</td>
-                    <td className="px-2.5 py-1.5">S/{m.subTotal.toFixed(2)}</td>
-                    <td className="px-2.5 py-1.5">S/{m.igv.toFixed(2)}</td>
-                    <td className="px-2.5 py-1.5 font-semibold text-navy-500">S/{m.total.toFixed(2)}</td>
+                    <td className="px-2.5 py-1.5">{formatMoney(m.subTotal)}</td>
+                    <td className="px-2.5 py-1.5">{formatMoney(m.igv)}</td>
+                    <td className="px-2.5 py-1.5 font-semibold text-navy-500">{formatMoney(m.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -121,9 +123,9 @@ function ModalDetalle({ ticket, onClose, onAction }: { ticket: Ticket; onClose: 
           {/* Totales + pago */}
           <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
             <div>
-              <p className="text-[11px] text-gray-500">Sub Total: <span className="font-medium">S/ {ticket.subTotal.toFixed(2)}</span></p>
-              <p className="text-[11px] text-gray-500">IGV (18%): <span className="font-medium">S/ {ticket.igv.toFixed(2)}</span></p>
-              <p className="text-[14px] font-bold text-navy-500">TOTAL: S/ {ticket.total.toFixed(2)}</p>
+              <p className="text-[11px] text-gray-500">Sub Total: <span className="font-medium">{formatMoney(ticket.subTotal)}</span></p>
+              <p className="text-[11px] text-gray-500">IGV: <span className="font-medium">{formatMoney(ticket.igv)}</span></p>
+              <p className="text-[14px] font-bold text-navy-500">TOTAL: {formatMoney(ticket.total)}</p>
             </div>
             <div className="text-right">
               <Badge
@@ -175,8 +177,8 @@ function TicketMenu({ ticket, onVer, onClose, onAction }: {
   return (
     <div className="absolute right-0 top-8 z-50 bg-white border border-gray-200 rounded-lg
                     shadow-lg min-w-[190px] py-1" onClick={e=>e.stopPropagation()}>
-      {items.filter(a=>!a.hidden).map((a,i)=>(
-        <button key={i} onClick={()=>{ a.onClick(); onClose() }}
+      {items.filter(a=>!a.hidden).map(a=>(
+        <button key={a.label} onClick={()=>{ a.onClick(); onClose() }}
           className={`w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors
             ${a.danger?'text-red-600 hover:bg-red-50':'text-gray-600 hover:bg-blue-50 hover:text-navy-500'}`}>
           <span className={a.danger?'text-red-400':'text-gray-400'}>{a.icon}</span>
@@ -192,7 +194,7 @@ function TicketRow({ ticket, selected, onSelect, onDetalle, onAction }: {
   ticket:Ticket; selected:boolean; onSelect:()=>void; onDetalle:()=>void; onAction: (action: TicketAction) => void
 }) {
   const [menu, setMenu] = useState(false)
-  const est = ESTADOS_MAP[ticket.estado]
+  const est = ESTADOS_MAP[ticket.estado] ?? { label: ticket.estado.replaceAll('_', ' '), variant: 'info' }
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
@@ -234,7 +236,7 @@ function TicketRow({ ticket, selected, onSelect, onDetalle, onAction }: {
           : '—'}
       </td>
       <td className="px-3 py-3 min-w-[100px]">
-        <p className="text-[13px] font-bold text-gray-800">S/ {ticket.total.toFixed(2)}</p>
+        <p className="text-[13px] font-bold text-gray-800">{formatMoney(ticket.total)}</p>
         <Badge label={ticket.pagado?'PAGADO':'NO PAGADO'} variant={ticket.pagado?'pagado':'nopagado'} className="mt-1"/>
       </td>
       <td className="px-3 py-3">
@@ -267,9 +269,9 @@ function TicketRow({ ticket, selected, onSelect, onDetalle, onAction }: {
 export default function BusquedaPage() {
   const router = useRouter()
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [tickets, setTickets] = useState<Ticket[]>(TICKETS_DB)
-  const [totalTickets, setTotalTickets] = useState(TICKETS_DB.length)
+  const isDemoMode = isDemoSession(token)
+  const [tickets, setTickets] = useState<Ticket[]>(isDemoMode ? TICKETS_DB : [])
+  const [totalTickets, setTotalTickets] = useState(isDemoMode ? TICKETS_DB.length : 0)
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [detalleTicket, setDetalle] = useState<Ticket|null>(null)
@@ -283,17 +285,43 @@ export default function BusquedaPage() {
   const [fFiltrarPor, setFFiltrarPor] = useState('')
   const [fPagado,    setFPagado]    = useState('')
   const [fEntrega,   setFEntrega]   = useState('')
-  const [fFechaIni,  setFechaIni]   = useState('2026-02-01')
-    const [fFechaFin,  setFechaFin]  = useState('2026-02-28')
+  const [fFechaIni,  setFechaIni]   = useState('')
+  const [fFechaFin,  setFechaFin]  = useState('')
   const [fGuia, setFGuia] = useState('')
   const [fOrigen, setFOrigen] = useState('')
   const [fDestino, setFDestino] = useState('')
 
-  const buscar = async () => {
-    if (!isDemoMode) {
-      setLoading(true)
-      try {
-        const filtros: FiltrosBusqueda = {
+  const [page, setPage] = useState(1)
+  const [applied, setApplied] = useState<FiltrosBusqueda>({})
+  const [destinos, setDestinos] = useState<Destino[]>(isDemoMode ? DESTINOS_LIST : [])
+  const [error, setError] = useState('')
+  useEffect(() => {
+    if (isDemoMode) return
+    let active = true
+    destinosApi.listar().then(r => { if (active) setDestinos(r.data) }).catch(() => toast.error('No se pudo cargar el catálogo de destinos'))
+    const id = new URLSearchParams(window.location.search).get('ticket')
+    if (id) ticketsApi.getById(id).then(r => { if (active) setDetalle(r.data) }).catch(() => toast.error('No se pudo abrir el ticket'))
+    return () => { active = false }
+  }, [isDemoMode])
+  useEffect(() => {
+    if (isDemoMode) return
+    let active = true
+    setLoading(true)
+    setError('')
+    ticketsApi.buscar(applied, page, 20).then(response => {
+      if (!active) return
+      setTickets(response.data.data)
+      setTotalTickets(response.data.total)
+      setSelected(new Set())
+    }).catch(err => {
+      if (!active) return
+      setTickets([]); setTotalTickets(0)
+      setError(err.response?.data?.message || 'No se pudo buscar tickets')
+    }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [isDemoMode, applied, page])
+  const buscar = () => {
+    const filtros: FiltrosBusqueda = {
           numeroTicket: fNumero || undefined,
           dniRuc: fDniRuc || undefined,
           origenId: fOrigen || undefined,
@@ -308,16 +336,10 @@ export default function BusquedaPage() {
           fechaFin: fFechaFin || undefined,
           guiaRemisionRemitente: fGuia || undefined,
         }
-        const response = await ticketsApi.buscar(filtros, 1, 20)
-        setTickets(response.data.data)
-        setTotalTickets(response.data.total)
-        toast(`${response.data.data.length} resultado(s) encontrado(s)`)
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'No se pudo buscar tickets')
-      } finally { setLoading(false) }
-      return
-    }
+    if (!isDemoMode) { setPage(1); setApplied(filtros); return }
     let data = [...TICKETS_DB]
+    if (fOrigen) data = data.filter(t => t.origen.id === fOrigen)
+    if (fDestino) data = data.filter(t => t.destino.id === fDestino)
     if (fNumero)  data = data.filter(t=>t.numeroTicket.includes(fNumero))
     if (fDniRuc)  data = data.filter(t=>
       (t.remitente.ruc||'').includes(fDniRuc)||(t.remitente.dni||'').includes(fDniRuc)||
@@ -344,7 +366,7 @@ export default function BusquedaPage() {
       return
     }
     try {
-      const response = await ticketsApi.descargarOS({ numeroTicket:fNumero || undefined, dniRuc:fDniRuc || undefined, estado:(fEstado || '') as any, anulado:fAnulado === 'SI' ? true : fAnulado === 'NO' ? false : null, tipoCliente:(fTipoCliente || 'TODOS') as any, filtrarPor:(fFiltrarPor || '') as any, pagado:fPagado === 'PAGADO' ? true : fPagado === 'NO_PAGADO' ? false : null, tipoEntrega:(fEntrega || '') as any, fechaInicio:fFechaIni, fechaFin:fFechaFin, guiaRemisionRemitente:fGuia || undefined })
+      const response = await ticketsApi.descargarOS({ numeroTicket:fNumero || undefined, dniRuc:fDniRuc || undefined, estado:(fEstado || '') as any, anulado:fAnulado === 'SI' ? true : fAnulado === 'NO' ? false : null, tipoCliente:(fTipoCliente || 'TODOS') as any, filtrarPor:(fFiltrarPor || '') as any, pagado:fPagado === 'PAGADO' ? true : fPagado === 'NO_PAGADO' ? false : null, tipoEntrega:(fEntrega || '') as any, fechaInicio:fFechaIni, fechaFin:fFechaFin || undefined, origenId:fOrigen || undefined, destinoId:fDestino || undefined, guiaRemisionRemitente:fGuia || undefined })
       const url = URL.createObjectURL(response.data); const a = document.createElement('a'); a.href = url; a.download = 'expreso-machupicchu-tickets.csv'; a.click(); URL.revokeObjectURL(url)
     } catch (error: any) { toast.error(error.response?.data?.message || 'No se pudo descargar OS') }
   }
@@ -363,8 +385,8 @@ export default function BusquedaPage() {
         const response = await ticketsApi.registrarPago(ticket.id)
         setTickets(prev=>prev.map(t=>t.id===ticket.id ? response.data : t))
       } else if (action === 'entregar') {
-        const response = await ticketsApi.actualizar(ticket.id, { estado:'ENTREGADO' } as Partial<Ticket>)
-        setTickets(prev=>prev.map(t=>t.id===ticket.id ? response.data : t))
+        router.push('/entregas?ticketId=' + encodeURIComponent(ticket.id))
+        return
       } else if (action === 'anular') {
         const response = await ticketsApi.anular(ticket.id, 'Anulación solicitada desde Búsqueda de Ticket')
         setTickets(prev=>prev.map(t=>t.id===ticket.id ? {...t, ...response.data} : t))
@@ -415,12 +437,12 @@ export default function BusquedaPage() {
           </FormField>
           <FormField label="Origen" className="w-[120px]">
             <Select value={fOrigen} onChange={e=>setFOrigen(e.target.value)}><option value="">TODOS</option>
-              {['CUSCO','LIMA','AREQUIPA','PIURA'].map(d=><option key={d} value={d}>{d}</option>)}
+              {destinos.map(d=><option key={d.id} value={d.id}>{d.nombre}</option>)}
             </Select>
           </FormField>
           <FormField label="Destino" className="w-[120px]">
             <Select value={fDestino} onChange={e=>setFDestino(e.target.value)}><option value="">TODOS</option>
-              {['CUSCO','LIMA','AREQUIPA','PIURA','QUILLABANBA'].map(d=><option key={d} value={d}>{d}</option>)}
+              {destinos.map(d=><option key={d.id} value={d.id}>{d.nombre}</option>)}
             </Select>
           </FormField>
           <FormField label="Estado" className="w-[190px]">
@@ -498,7 +520,7 @@ export default function BusquedaPage() {
               {tickets.length===0
                 ? <tr><td colSpan={9} className="py-16 text-center text-gray-400">
                     <Search size={32} className="mx-auto mb-2 text-gray-300"/>
-                    <p className="text-[13px]">No se encontraron resultados</p>
+                    <p role={error ? 'alert' : 'status'} className="text-[13px]">{error || 'No se encontraron resultados'}</p>
                   </td></tr>
                 : tickets.map(t=>(
                     <TicketRow key={t.id} ticket={t}
@@ -514,11 +536,11 @@ export default function BusquedaPage() {
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
           <span className="text-[11px] text-gray-500">{totalTickets} registro(s)</span>
           <div className="flex items-center gap-1.5">
-            <button className="w-7 h-7 border border-gray-200 rounded flex items-center justify-center text-gray-400">
+            <button aria-label="Página anterior" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)} className="w-7 h-7 border rounded">
               <ChevronLeft size={13}/>
             </button>
-            <button className="w-7 h-7 bg-sky-brand text-white rounded text-[11px] font-medium">1</button>
-            <button className="w-7 h-7 border border-gray-200 rounded flex items-center justify-center text-gray-400">
+            <span className="px-2 text-xs">{page} / {Math.max(1, Math.ceil(totalTickets / 20))}</span>
+            <button aria-label="Página siguiente" disabled={page * 20 >= totalTickets || loading} onClick={() => setPage(page + 1)} className="w-7 h-7 border rounded">
               <ChevronRight size={13}/>
             </button>
           </div>

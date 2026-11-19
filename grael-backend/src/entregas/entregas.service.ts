@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, In, Repository } from 'typeorm'
+import { DataSource, EntityManager, In, Repository } from 'typeorm'
 import { Entrega, EstadoEntrega } from '../database/entities/entrega.entity'
 import { Ticket, EstadoTicket } from '../database/entities/ticket.entity'
 import { Bulto, EstadoBulto } from '../database/entities/bulto.entity'
@@ -39,8 +39,8 @@ export class EntregasService {
     return qb.getMany()
   }
 
-  async crear(dto: any, usuarioId?: string, user?: any) {
-    return this.dataSource.transaction(async manager => {
+  async crear(dto: any, usuarioId?: string, user?: any, transaction?: EntityManager) {
+    return (transaction || this.dataSource).transaction(async manager => {
       const ticket = await manager.findOne(Ticket, { where: { id: dto.ticketId }, relations: ['bultos', 'destino'] })
       if (!ticket) throw new NotFoundException('Ticket no encontrado')
       // Serializa la planificación para el mismo ticket; evita dos entregas activas creadas en paralelo.
@@ -71,8 +71,8 @@ export class EntregasService {
     })
   }
 
-  async entregar(id: string, dto: any, usuarioId?: string, user?: any) {
-    return this.dataSource.transaction(async manager => {
+  async entregar(id: string, dto: any, usuarioId?: string, user?: any, transaction?: EntityManager) {
+    return (transaction || this.dataSource).transaction(async manager => {
       const entrega = await manager.findOne(Entrega, { where: { id }, lock: { mode: 'pessimistic_write' } })
       if (!entrega) throw new NotFoundException('Entrega no encontrada')
       if (![EstadoEntrega.PROGRAMADA, EstadoEntrega.EN_REPARTO].includes(entrega.estado)) throw new BadRequestException({ statusCode: 409, code: entrega.estado === EstadoEntrega.ENTREGADA ? 'DELIVERY_ALREADY_CONFIRMED' : 'INVALID_STATE_TRANSITION', message: 'La entrega no admite confirmación desde su estado actual', details: { estado: entrega.estado } })
@@ -114,6 +114,7 @@ export class EntregasService {
         await manager.save(Bulto, bulto)
         await manager.save(TrackingEvento, manager.create(TrackingEvento, { ticketId: entrega.ticketId, bultoId: bulto.id, sedeId: custodySites[0], tipoEvento: TipoTrackingEvento.ENTREGADO, usuarioId: usuario?.id, observacion: 'Entrega confirmada', metadata: { entregaId: entrega.id } }))
       }
+      await manager.query('SELECT id FROM tickets WHERE id = $1 FOR UPDATE', [entrega.ticketId])
       const ticket = await manager.findOne(Ticket, { where: { id: entrega.ticketId }, relations: ['bultos'] })
       if (ticket && (ticket.bultos || []).filter(item => item.estado !== EstadoBulto.ANULADO).length > 0 && (ticket.bultos || []).filter(item => item.estado !== EstadoBulto.ANULADO).every(item => item.estado === EstadoBulto.ENTREGADO)) { ticket.estado = EstadoTicket.ENTREGADO; await manager.save(Ticket, ticket) }
       await manager.save(AuditLog, manager.create(AuditLog, { usuarioId, sedeId: custodySites[0], accion: 'DELIVERY_CONFIRMED', entidad: 'Entrega', entidadId: entrega.id, despues: { ticketId: entrega.ticketId, bultoIds: activeBultos.map(item => item.id), nombreReceptor: entrega.nombreReceptor, documentoReceptor: entrega.documentoReceptor }, metadata: { requestId: user?.requestId || null } }))

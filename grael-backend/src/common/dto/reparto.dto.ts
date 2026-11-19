@@ -1,4 +1,3 @@
-import { Type } from 'class-transformer'
 import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
 
 export class RetornoRepartoDto {
@@ -25,11 +24,11 @@ export class IntentoRepartoDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(100)
+  @MaxLength(30)
   documentoReceptor?: string
 
   @IsOptional()
   @IsString()
-  @MaxLength(180)
+  @MaxLength(120)
   nombreReceptor?: string
 }

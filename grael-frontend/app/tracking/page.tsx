@@ -1,5 +1,6 @@
 'use client'
 
+import { isDemoSession } from '@/lib/demo-session'
 import { FormEvent, useState } from 'react'
 import { Search, MapPin, PackageCheck, Clock3, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -9,15 +10,15 @@ import { Button, Card, Input, Badge } from '@/components/ui'
 import { BrandSignature } from '@/components/brand/BrandIdentity'
 
 const DEMO_EVENTS = [
-  { tipoEvento: 'RECEPCIONADO', fechaHora: '2026-08-19T08:15:00' },
-  { tipoEvento: 'INGRESO_ALMACEN', fechaHora: '2026-08-19T09:10:00' },
-  { tipoEvento: 'PROGRAMADO', fechaHora: '2026-08-19T11:30:00' },
+  { id: 'demo-RECEPCIONADO', tipoEvento: 'RECEPCIONADO', fechaHora: '2026-08-19T08:15:00' },
+  { id: 'demo-INGRESO_ALMACEN', tipoEvento: 'INGRESO_ALMACEN', fechaHora: '2026-08-19T09:10:00' },
+  { id: 'demo-PROGRAMADO', tipoEvento: 'PROGRAMADO', fechaHora: '2026-08-19T11:30:00' },
 ]
 
 export default function TrackingPublicPage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [codigo, setCodigo] = useState('301-0631089')
+  const isDemoMode = isDemoSession(token)
+  const [codigo, setCodigo] = useState('')
   const [loading, setLoading] = useState(false)
   const [resultado, setResultado] = useState<any>(null)
 
@@ -59,7 +60,7 @@ export default function TrackingPublicPage() {
           <div className="flex items-center gap-2 text-sm text-gray-600"><MapPin size={15} className="text-sky-brand" />{resultado.origen} → {resultado.destino}</div>
         </div>
         <div className="mt-5 space-y-4">
-          {(resultado.eventos || []).map((event: any, index: number) => <div key={`${event.tipoEvento}-${index}`} className="flex gap-3"><div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-sky-brand"><PackageCheck size={14}/></div><div><p className="text-sm font-semibold text-gray-700">{event.tipoEvento}</p><p className="flex items-center gap-1 text-[11px] text-gray-400"><Clock3 size={11}/>{new Date(event.fechaHora).toLocaleString('es-PE')}</p></div></div>)}
+          {(resultado.eventos || []).map((event: any) => <div key={event.id} className="flex gap-3"><div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-sky-brand"><PackageCheck size={14}/></div><div><p className="text-sm font-semibold text-gray-700">{event.tipoEvento}</p><p className="flex items-center gap-1 text-[11px] text-gray-400"><Clock3 size={11}/>{new Date(event.fechaHora).toLocaleString('es-PE')}</p></div></div>)}
         </div>
       </Card>}
       {!resultado && <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400"><AlertCircle size={14}/>La consulta pública no expone datos personales ni credenciales.</div>}

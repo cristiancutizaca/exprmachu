@@ -93,7 +93,7 @@ export const TICKETS_DB: Ticket[] = [
     destinatario:{ id:'2', tipo:'NATURAL', razonSocial:'LUIS ENRIQUE PAZ UPIACHIHUA', dni:'75471192', telefono:'925202116' },
     programacion:'PIU-CUS-0600', atencion1:'', atencion2:'',
     guiasRemision:[{ codigo:'PIU-001234/5678' }],
-    mercaderias:[{ tipo:'CARGA GENERAL', descripcion:'REPUESTOS INDUSTRIALES', pesoTotal:150, costoKg:5.5, cantidad:3, esPesoVolumen:false, subTotal:2475, igv:445.5, total:2920.5 }],
+    mercaderias:[{ id:'demo-merc-1', tipo:'CARGA GENERAL', descripcion:'REPUESTOS INDUSTRIALES', pesoTotal:150, costoKg:5.5, cantidad:3, esPesoVolumen:false, subTotal:2475, igv:445.5, total:2920.5 }],
     subTotal:2475, igv:445.5, total:2920.5, pagado:false, usuarioCreacion:'LEYDY DIANA', anulado:false,
   },
   {
@@ -104,7 +104,7 @@ export const TICKETS_DB: Ticket[] = [
     destinatario:{ id:'4', tipo:'NATURAL', razonSocial:'ROBERTO ALMANZA HUANCA', dni:'42178956', telefono:'963741852' },
     programacion:'LIM-CUS-0900', atencion1:'', atencion2:'',
     guiasRemision:[{ codigo:'LIM-003456/7890' }],
-    mercaderias:[{ tipo:'ENCOMIENDA', descripcion:'ROPA Y CALZADO', pesoTotal:25, costoKg:6.0, cantidad:2, esPesoVolumen:false, subTotal:300, igv:54, total:354 }],
+    mercaderias:[{ id:'demo-merc-2', tipo:'ENCOMIENDA', descripcion:'ROPA Y CALZADO', pesoTotal:25, costoKg:6.0, cantidad:2, esPesoVolumen:false, subTotal:300, igv:54, total:354 }],
     subTotal:300, igv:54, total:354, pagado:true, fechaPago:'2026-02-10 15:10:00', usuarioCreacion:'MARIA G.', anulado:false,
   },
   {
@@ -115,7 +115,7 @@ export const TICKETS_DB: Ticket[] = [
     destinatario:{ id:'6', tipo:'NATURAL', razonSocial:'ANA FLORES QUISPE', dni:'47812365', telefono:'987123456' },
     programacion:'AQP-CUS-0800', atencion1:'', atencion2:'',
     guiasRemision:[],
-    mercaderias:[{ tipo:'FRÁGIL', descripcion:'VAJILLA Y CRISTALERÍA', pesoTotal:10, costoKg:8.0, cantidad:1, esPesoVolumen:false, subTotal:80, igv:14.4, total:94.4 }],
+    mercaderias:[{ id:'demo-merc-3', tipo:'FRÁGIL', descripcion:'VAJILLA Y CRISTALERÍA', pesoTotal:10, costoKg:8.0, cantidad:1, esPesoVolumen:false, subTotal:80, igv:14.4, total:94.4 }],
     subTotal:80, igv:14.4, total:94.4, pagado:true, fechaPago:'2026-02-09 11:00:00', usuarioCreacion:'CARLOS R.', anulado:false,
   },
   {
@@ -126,7 +126,7 @@ export const TICKETS_DB: Ticket[] = [
     destinatario:{ id:'8', tipo:'NATURAL', razonSocial:'JORGE LUIS QUISPE MAMANI', dni:'09876543', telefono:'976543210' },
     programacion:'CUS-QUI-0700', atencion1:'', atencion2:'',
     guiasRemision:[],
-    mercaderias:[{ tipo:'MAQUINARIA', descripcion:'HERRAMIENTAS ELÉCTRICAS', pesoTotal:80, costoKg:5.5, cantidad:2, esPesoVolumen:false, subTotal:880, igv:158.4, total:1038.4 }],
+    mercaderias:[{ id:'demo-merc-4', tipo:'MAQUINARIA', descripcion:'HERRAMIENTAS ELÉCTRICAS', pesoTotal:80, costoKg:5.5, cantidad:2, esPesoVolumen:false, subTotal:880, igv:158.4, total:1038.4 }],
     subTotal:880, igv:158.4, total:1038.4, pagado:false, usuarioCreacion:'ADMIN', anulado:false,
   },
   {
@@ -138,8 +138,8 @@ export const TICKETS_DB: Ticket[] = [
     programacion:'CUS-LIM-0800', atencion1:'FRAGIL', atencion2:'',
     guiasRemision:[{ codigo:'CUS-007890/1234' },{ codigo:'CUS-007891/1234' }],
     mercaderias:[
-      { tipo:'TEXTILES', descripcion:'TEJIDOS ALPACA', pesoTotal:45, costoKg:5.5, cantidad:5, esPesoVolumen:false, subTotal:1237.5, igv:222.75, total:1460.25 },
-      { tipo:'DOCUMENTOS', descripcion:'CONTRATOS COMERCIALES', pesoTotal:1, costoKg:4.0, cantidad:1, esPesoVolumen:false, subTotal:4, igv:0.72, total:4.72 },
+      { id:'demo-merc-5', tipo:'TEXTILES', descripcion:'TEJIDOS ALPACA', pesoTotal:45, costoKg:5.5, cantidad:5, esPesoVolumen:false, subTotal:1237.5, igv:222.75, total:1460.25 },
+      { id:'demo-merc-6', tipo:'DOCUMENTOS', descripcion:'CONTRATOS COMERCIALES', pesoTotal:1, costoKg:4.0, cantidad:1, esPesoVolumen:false, subTotal:4, igv:0.72, total:4.72 },
     ],
     subTotal:1241.5, igv:223.47, total:1464.97, pagado:true, fechaPago:'2026-02-24 09:50:00', usuarioCreacion:'LEYDY DIANA', anulado:false,
   },
@@ -151,7 +151,7 @@ export const TICKETS_DB: Ticket[] = [
     destinatario:{ id:'12', tipo:'NATURAL', razonSocial:'DAVID CCAMA PUMA', dni:'54321098', telefono:'962345678' },
     programacion:'PUN-CUS-0700', atencion1:'REFRIGERADO', atencion2:'',
     guiasRemision:[{ codigo:'PUN-001122/3344' }],
-    mercaderias:[{ tipo:'ALIMENTOS', descripcion:'QUINUA ORGÁNICA', pesoTotal:200, costoKg:5.5, cantidad:10, esPesoVolumen:false, subTotal:11000, igv:1980, total:12980 }],
+    mercaderias:[{ id:'demo-merc-7', tipo:'ALIMENTOS', descripcion:'QUINUA ORGÁNICA', pesoTotal:200, costoKg:5.5, cantidad:10, esPesoVolumen:false, subTotal:11000, igv:1980, total:12980 }],
     subTotal:11000, igv:1980, total:12980, pagado:false, usuarioCreacion:'ADMIN', anulado:false,
   },
   {
@@ -162,7 +162,7 @@ export const TICKETS_DB: Ticket[] = [
     destinatario:{ id:'13', tipo:'NATURAL', razonSocial:'PEDRO VARGAS QUISPE', dni:'72345678', telefono:'943215678' },
     programacion:'CUS-AQP-1000', atencion1:'', atencion2:'',
     guiasRemision:[],
-    mercaderias:[{ tipo:'ELECTRODOMÉSTICOS', descripcion:'MICROONDAS Y LICUADORAS', pesoTotal:35, costoKg:7.0, cantidad:4, esPesoVolumen:false, subTotal:980, igv:176.4, total:1156.4 }],
+    mercaderias:[{ id:'demo-merc-8', tipo:'ELECTRODOMÉSTICOS', descripcion:'MICROONDAS Y LICUADORAS', pesoTotal:35, costoKg:7.0, cantidad:4, esPesoVolumen:false, subTotal:980, igv:176.4, total:1156.4 }],
     subTotal:980, igv:176.4, total:1156.4, pagado:true, fechaPago:'2026-02-07 14:30:00', usuarioCreacion:'CARLOS R.', anulado:false,
   },
   {
@@ -173,7 +173,7 @@ export const TICKETS_DB: Ticket[] = [
     destinatario:{ id:'8', tipo:'NATURAL', razonSocial:'JORGE LUIS QUISPE MAMANI', dni:'09876543', telefono:'976543210' },
     programacion:'PIU-CUS-0600', atencion1:'', atencion2:'',
     guiasRemision:[],
-    mercaderias:[{ tipo:'CARGA GENERAL', descripcion:'MATERIALES CONSTRUCCIÓN', pesoTotal:300, costoKg:5.5, cantidad:1, esPesoVolumen:false, subTotal:1650, igv:297, total:1947 }],
+    mercaderias:[{ id:'demo-merc-9', tipo:'CARGA GENERAL', descripcion:'MATERIALES CONSTRUCCIÓN', pesoTotal:300, costoKg:5.5, cantidad:1, esPesoVolumen:false, subTotal:1650, igv:297, total:1947 }],
     subTotal:1650, igv:297, total:1947, pagado:false, usuarioCreacion:'LEYDY DIANA', anulado:true,
   },
 ]

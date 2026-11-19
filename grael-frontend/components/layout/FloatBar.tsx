@@ -15,7 +15,7 @@ export default function FloatBar({ actions }: { actions: FloatAction[] }) {
     <div className="fixed bottom-6 right-6 z-50 glass-dark rounded-xl px-4 py-2.5
                     flex items-center gap-1.5 shadow-float">
       {actions.map((action, i) => (
-        <div key={i} className="flex items-center gap-1.5">
+        <div key={action.label} className="flex items-center gap-1.5">
           {i > 0 && <div className="w-px h-5 bg-white/20" />}
           <button
             onClick={action.onClick}

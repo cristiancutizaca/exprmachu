@@ -38,7 +38,7 @@ export class CajaDiariaQueryDto {
 
 export class OpenCashV4Dto {
   @IsUUID() sedeId: string
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) saldoInicial?: number
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) saldoInicial?: number
   @IsOptional() @IsString() @MaxLength(500) observacion?: string
 }
 
@@ -47,7 +47,7 @@ export class OpenCashV9Dto extends OpenCashV4Dto {}
 
 export class CashMovementV4Dto {
   @IsEnum(TipoMovimientoCaja) tipoMovimiento: TipoMovimientoCaja
-  @Type(() => Number) @IsNumber() @IsPositive() monto: number
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @IsPositive() monto: number
   @IsOptional() @IsString() @MaxLength(30) metodoPago?: string
   @IsString() @MaxLength(180) concepto: string
   @IsOptional() @IsUUID() pagoId?: string
@@ -55,7 +55,7 @@ export class CashMovementV4Dto {
 }
 
 export class CloseCashV4Dto {
-  @Type(() => Number) @IsNumber() @Min(0) saldoDeclarado: number
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) saldoDeclarado: number
   @IsOptional() @IsString() @MaxLength(500) observacion?: string
 }
 

@@ -155,7 +155,7 @@ export class TransbordoService {
     this.assertActor(user)
     if (!Object.values(EstadoTransbordo).includes(estado)) throw new BadRequestException('Estado inválido')
     return this.dataSource.transaction(async manager => {
-      const transbordo = await manager.findOne(Transbordo, { where: { id }, lock: { mode: 'pessimistic_write' } })
+      const transbordo = await manager.findOne(Transbordo, { where: { id }, loadEagerRelations: false, lock: { mode: 'pessimistic_write' } })
       if (!transbordo) throw new NotFoundException(`Transbordo ${id} no encontrado`)
       const hydrated = await manager.findOne(Transbordo, { where: { id }, relations: ['tickets', 'sede'] })
       transbordo.tickets = hydrated?.tickets || []

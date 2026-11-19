@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import {
   Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn,
 } from 'typeorm'
@@ -51,10 +52,10 @@ export class Sede {
   @Column({ length: 120, nullable: true })
   correo: string
 
-  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 10, scale: 7, nullable: true })
   latitud: number
 
-  @Column({ type: 'numeric', precision: 10, scale: 7, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 10, scale: 7, nullable: true })
   longitud: number
 
   @Column({ default: true })

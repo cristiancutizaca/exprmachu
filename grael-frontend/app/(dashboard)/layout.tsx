@@ -1,4 +1,5 @@
 'use client'
+import { demoEnabled } from '@/lib/demo-session'
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore, useUIStore } from '@/store'
@@ -17,7 +18,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const user = useAuthStore(s => s.user)
   const hydrated = useAuthStore(s => s.hydrated)
   const setDrawerOpen = useUIStore(s => s.setDrawerOpen)
-  const [authChecked, setAuthChecked] = useState(false)
+  const [verifiedToken, setVerifiedToken] = useState<string | null>(null)
+  const [sessionError, setSessionError] = useState(false)
+  const [attempt, retry] = useState(0)
+  const authChecked = Boolean(token && verifiedToken === token)
 
   useEffect(() => {
     if (!hydrated) useAuthStore.setState({ hydrated: true })
@@ -31,26 +35,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return
     }
     if (token.startsWith('demo-')) {
-      if (process.env.NODE_ENV === 'production' || process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') {
+      if (!demoEnabled) {
         useAuthStore.getState().logout()
-        setAuthChecked(false)
+        setVerifiedToken(null)
         router.replace('/login')
         return
       }
-      setAuthChecked(true)
+      setVerifiedToken(token)
       return
     }
     let active = true
+    setSessionError(false)
     authApi.me()
-      .then(() => { if (active) setAuthChecked(true) })
-      .catch(() => {
+      .then(({ data }) => {
         if (!active) return
+        useAuthStore.setState({ user: data })
+        setVerifiedToken(token)
+      })
+      .catch(error => {
+        if (!active) return
+        if (error.response?.status !== 401) { setSessionError(true); return }
         useAuthStore.getState().logout()
-        setAuthChecked(false)
+        setVerifiedToken(null)
         router.replace('/login')
       })
     return () => { active = false }
-  }, [hydrated, isAuthenticated, token, router, setDrawerOpen])
+  }, [hydrated, isAuthenticated, token, router, setDrawerOpen, attempt])
 
   useEffect(() => {
     setDrawerOpen(false)
@@ -70,6 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [hydrated, isAuthenticated, authChecked, user?.rol, pathname, router])
 
+  if (sessionError && isAuthenticated) return <div role="alert">No se pudo verificar la sesión. <button onClick={() => retry(n => n + 1)}>Reintentar</button></div>
   if (!hydrated || !isAuthenticated || !authChecked || !canAccessRoute(user?.rol, pathname)) return null
 
   return (
@@ -80,7 +91,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <ConfirmModal/>
       <div className="flex flex-1 overflow-hidden mt-[92px]">
         <Sidebar currentPath={pathname}/>
-        <main className={clsx(
+        <main key={user?.id} className={clsx(
           'flex-1 min-w-0 overflow-y-auto p-5 content-transition'
         )}>
           {children}

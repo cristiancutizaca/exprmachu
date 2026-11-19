@@ -32,8 +32,10 @@ export class DesembarqueService {
       .leftJoinAndSelect('ticket.destinatario', 'des')
       .leftJoinAndSelect('ticket.mercaderias', 'mercs')
       .leftJoinAndSelect('ticket.bultos', 'bultos')
-      .orderBy('d.createdAt', 'DESC')
+      .orderBy('d.createdAt', 'DESC').addOrderBy('d.id', 'DESC')
     if (!isGlobalRole(user) && user?.sedeId) qb.andWhere('bultos.sede_actual_id = :sedeId', { sedeId: user.sedeId })
+    if (params.ticketId) qb.andWhere('d.ticket_id = :ticketId', { ticketId: params.ticketId })
+    if (params.limit) qb.take(Math.min(100, Math.max(1, parseInt(params.limit) || 20)))
     if (params.estado) qb.andWhere('d.estado = :es', { es: params.estado })
     const [data, total] = await qb.getManyAndCount()
     return { data, total }

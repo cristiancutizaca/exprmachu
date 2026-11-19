@@ -1,9 +1,10 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { useState } from 'react'
 import { QrCode, Search, CheckCircle, Package, Truck, Ship, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Card, PageHeader, FormField, Input, Badge } from '@/components/ui'
-import { TICKETS_DB } from '@/lib/data'
+import { TICKETS_DB } from '@/lib/demo/data'
 import { bultosApi, ticketsApi } from '@/lib/api'
 import { useAuthStore } from '@/store'
 import { formatMoney, ESTADO_COLORS, formatDateTime } from '@/lib/utils'
@@ -11,7 +12,7 @@ import type { Ticket } from '@/types'
 
 export default function BusquedaQRPage() {
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
+  const isDemoMode = isDemoSession(token)
   const [qrInput, setQrInput] = useState('')
   const [searching, setSearching] = useState(false)
   const [resultado, setResultado] = useState<Ticket | null | 'notfound'>(null)
@@ -195,8 +196,8 @@ export default function BusquedaQRPage() {
           {/* Mercadería */}
           <Card>
             <p className="text-[12px] font-semibold text-gray-600 mb-2.5">Mercadería</p>
-            {t.mercaderias.map((m, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+            {t.mercaderias.map((m) => (
+              <div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <div>
                   <p className="text-[12px] font-medium text-gray-700">{m.tipo}</p>
                   <p className="text-[11px] text-gray-400">{m.descripcion || '—'}</p>

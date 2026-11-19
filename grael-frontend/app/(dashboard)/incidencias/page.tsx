@@ -1,5 +1,6 @@
 'use client'
 
+import { isDemoSession } from '@/lib/demo-session'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, RefreshCw, Search, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -44,8 +45,8 @@ export default function IncidenciasPage() {
   const token = useAuthStore(s => s.token)
   const user = useAuthStore(s => s.user)
   const canResolve = ['ADMIN_SEDE', 'SUPERVISOR', 'SUPERADMIN'].includes(String(user?.rol))
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [rows, setRows] = useState<IncidenciaRow[]>(DEMO_ROWS)
+  const isDemoMode = isDemoSession(token)
+  const [rows, setRows] = useState<IncidenciaRow[]>(isDemoMode ? DEMO_ROWS : [])
   const [tipo, setTipo] = useState('')
   const [estado, setEstado] = useState('')
   const [query, setQuery] = useState('')

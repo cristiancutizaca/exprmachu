@@ -5,7 +5,7 @@ import { MetodoPago } from '../database/entities/operaciones.entity'
 import { RolUsuario } from '../database/entities/usuario.entity'
 
 describe('PagosService V10 — ledger de CajaSesion', () => {
-  const pagoRepo: any = { findAndCount: jest.fn(), find: jest.fn() }
+  const pagoRepo: any = { findAndCount: jest.fn(), createQueryBuilder: jest.fn() }
   const cajaRepo: any = { findOne: jest.fn(), findOneBy: jest.fn(), create: jest.fn(), save: jest.fn() }
   const movimientoRepo: any = { find: jest.fn() }
   const sedeRepo: any = { findOneBy: jest.fn() }
@@ -83,9 +83,11 @@ describe('PagosService V10 — ledger de CajaSesion', () => {
 
   it('filtra la caja diaria por Pago.sedeId y no por sede de recepción', async () => {
     pagoRepo.findAndCount.mockResolvedValue([[], 2])
-    pagoRepo.find.mockResolvedValue([{ monto: 100, metodoPago: MetodoPago.EFECTIVO }])
+    const aggregate = { select: jest.fn().mockReturnThis(), addSelect: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), groupBy: jest.fn().mockReturnThis(), addGroupBy: jest.fn().mockReturnThis(), getRawMany: jest.fn().mockResolvedValue([{ monto: '100.00', metodo: MetodoPago.EFECTIVO, cantidad: 2, hora: 8 }]) }
+    pagoRepo.createQueryBuilder.mockReturnValue(aggregate)
     const result = await service.getDelDia({ fecha: '2026-08-24', page: 1, limit: 20 }, user)
     expect(pagoRepo.findAndCount).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ sedeId: 'sede-1' }), take: 20 }))
+    expect(aggregate.where).toHaveBeenCalledWith(expect.objectContaining({ sedeId: 'sede-1' }))
     expect(result.total).toBe(100)
     await expect(service.getDelDia({ fecha: '2026-08-24', sedeId: 'sede-2' }, user)).rejects.toThrow('otra sede')
   })

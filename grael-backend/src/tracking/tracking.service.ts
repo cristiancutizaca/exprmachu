@@ -96,6 +96,6 @@ export class TrackingService {
     const ticket = isUuid ? await this.ticketRepo.findOne({ where: [{ id: codigo }, { numeroTicket: codigo }], relations: ['origen', 'destino'] }) : await this.ticketRepo.findOne({ where: { numeroTicket: codigo }, relations: ['origen', 'destino'] })
     if (!ticket) throw new NotFoundException('Código de tracking no encontrado')
     const events = await this.eventRepo.find({ where: { ticketId: ticket.id }, order: { fechaHora: 'ASC' } })
-    return { codigo: ticket.numeroTicket, origen: ticket.origen?.nombre, destino: ticket.destino?.nombre, estado: ticket.estado, eventos: events.map(event => ({ tipoEvento: event.tipoEvento, fechaHora: event.fechaHora })) }
+    return { codigo: ticket.numeroTicket, origen: ticket.origen?.nombre, destino: ticket.destino?.nombre, estado: ticket.estado, eventos: events.map(event => ({ id: event.id, tipoEvento: event.tipoEvento, fechaHora: event.fechaHora })) }
   }
 }

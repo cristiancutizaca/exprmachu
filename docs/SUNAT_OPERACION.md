@@ -34,7 +34,7 @@ La transmisión productiva requiere autorización empresarial para usar el RUC, 
 ## Repetir las pruebas
 
 - Backend. Ejecute `npm run build` y `npm run test:unit` desde `grael-backend`.
-- PostgreSQL. Use una base de pruebas local, ejecute `npm run migration:run` y `npm run seed`, y levante el backend con `NODE_ENV=test`.
+- PostgreSQL. Use una base de pruebas local cuyo nombre empiece por `exprmachu_test_`. Ejecute `npm run migration:run` y habilite `ALLOW_DEMO_SEED=true` al ejecutar `npm run seed`. Levante el backend con `NODE_ENV=test`.
 - Integración SUNAT. Use un `DB_NAME` que comience con `exprmachu_test_`, un certificado de pruebas y los XSD indicados arriba. Configure las dos variables `SUNAT_*_ENV=TEST` y las dos URL base a la misma dirección `http://127.0.0.1:puerto` libre. El script levanta el proveedor local y prueba las rutas ya iniciadas del backend. Exporte las variables al ejecutar `npm run test:sunat`.
 - Navegador. En el frontend, ejecute `npx playwright install chromium`, compile con `NEXT_PUBLIC_API_URL=http://127.0.0.1:3002/api/v1`, levante Next.js en el puerto 3003 y ejecute `npm run test:e2e` con `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3003`. `PLAYWRIGHT_CHROMIUM_PATH` admite un Chromium instalado por el operador.
 - Validaciones históricas. Con el backend y PostgreSQL de pruebas disponibles, ejecute `node scripts/smoke-core-v10.mjs` desde la raíz, y `npm run test:concurrency` y `npm run test:integrity` desde el backend. Para `npm run test:performance`, configure `API_BASE_URL` con el origen HTTP y `GRAEL_PERF_USER` y `GRAEL_PERF_PASSWORD` con un usuario de pruebas.

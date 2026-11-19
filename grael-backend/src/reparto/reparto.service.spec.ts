@@ -15,7 +15,7 @@ function buildService() {
   const trackingRepo: any = {}
   const auditRepo: any = {}
   const dataSource: any = { transaction: jest.fn() }
-  return { service: new RepartoService(repo, detalleRepo, ticketRepo, bultoRepo, usuarioRepo, vehiculoRepo, sedeRepo, trackingRepo, auditRepo, dataSource, { recalculate: jest.fn() } as any), repo, detalleRepo, dataSource }
+  return { service: new RepartoService(repo, detalleRepo, ticketRepo, bultoRepo, usuarioRepo, vehiculoRepo, sedeRepo, trackingRepo, auditRepo, dataSource, { recalculate: jest.fn() } as any, {} as any), repo, detalleRepo, dataSource }
 }
 
 describe('RepartoService V4', () => {
@@ -25,6 +25,7 @@ describe('RepartoService V4', () => {
     const { service, dataSource } = buildService()
     const usuario: any = { id: 'user-1', sedeId: 'sede-1', rol: RolUsuario.ADMIN_SEDE }
     const manager: any = {
+      query: jest.fn(),
       findOneBy: jest.fn().mockImplementation((entity: any, where: any) => {
         if (where?.id === 'user-1') return usuario
         if (where?.id === 'sede-1') return { id: 'sede-1' }

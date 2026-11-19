@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { Usuario } from './usuario.entity'
 import { Sede } from './sede.entity'
@@ -29,9 +30,9 @@ export class CajaSesion {
   @Column({ name: 'usuario_cierre_id', nullable: true }) usuarioCierreId: string
   @Column({ type: 'timestamp', name: 'fecha_apertura', default: () => 'NOW()' }) fechaApertura: Date
   @Column({ type: 'timestamp', name: 'fecha_cierre', nullable: true }) fechaCierre: Date
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'saldo_inicial', default: 0 }) saldoInicial: number
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'saldo_esperado', default: 0 }) saldoEsperado: number
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'saldo_declarado', nullable: true }) saldoDeclarado: number
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'saldo_inicial', default: 0 }) saldoInicial: number
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'saldo_esperado', default: 0 }) saldoEsperado: number
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'saldo_declarado', nullable: true }) saldoDeclarado: number
   @Column({ type: 'enum', enum: EstadoCajaSesion, default: EstadoCajaSesion.ABIERTA }) estado: EstadoCajaSesion
   @Column({ type: 'text', nullable: true }) observacion: string
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date
@@ -52,7 +53,7 @@ export class MovimientoCaja {
   @Column({ name: 'usuario_id' }) usuarioId: string
   @Column({ type: 'enum', enum: TipoMovimientoCaja, name: 'tipo_movimiento' }) tipo: TipoMovimientoCaja
   @Column({ type: 'enum', enum: MetodoPago, name: 'metodo_pago', nullable: true }) metodoPago: MetodoPago
-  @Column({ type: 'numeric', precision: 12, scale: 2 }) monto: number
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2 }) monto: number
   @Column({ length: 180 }) concepto: string
   @Column({ type: 'jsonb', nullable: true }) metadata: Record<string, unknown>
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date

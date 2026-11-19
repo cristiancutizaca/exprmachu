@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { BrandHero } from '@/components/brand/BrandIdentity'
 import { useEffect, useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
@@ -22,9 +23,10 @@ import {
   consultarRENIEC, consultarSUNAT,
   DESTINOS_LIST, TIPOS_MERCADERIA, PROGRAMACIONES,
   calcularMontos, nextNumeroTicket, TICKETS_DB, COSTO_KG_DEFAULT,
-} from '@/lib/data'
+} from '@/lib/demo/data'
 import type { TipoPago, TipoEntrega, Ticket as TicketType, Destino, Cliente } from '@/types'
-import { clientesApi, destinosApi, programacionesApi, ticketsApi } from '@/lib/api'
+import { formatMoney, sumAmounts } from '@/lib/utils'
+import { mercaderiaApi, clientesApi, destinosApi, programacionesApi, ticketsApi } from '@/lib/api'
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 const schema = z.object({
@@ -55,7 +57,7 @@ function PersonaField({ prefix, label, register, setValue, watch, errors, disabl
   const [loading, setLoading] = useState(false)
   const [status,  setStatus]  = useState<'idle'|'ok'|'error'>('idle')
   const token = useAuthStore(state => state.token)
-  const isDemoMode = !token || token.startsWith('demo-')
+  const isDemoMode = isDemoSession(token)
   const tipoDoc = watch(`${prefix}TipoDoc`)
   const doc     = watch(`${prefix}Doc`)
 
@@ -239,7 +241,8 @@ function ModalReenvio({ onSelect, onClose }: {
 export default function RecepcionPage() {
   const router = useRouter()
   const token = useAuthStore(s => s.token)
-  const isDemoMode = !token || token.startsWith('demo-')
+  const user = useAuthStore(s => s.user)
+  const isDemoMode = isDemoSession(token)
   const [destinos, setDestinos] = useState<Destino[]>(isDemoMode ? DESTINOS_LIST : [])
   const [programaciones, setProgramaciones] = useState<Array<{ id: string; label: string }>>([])
   useEffect(() => {
@@ -248,7 +251,7 @@ export default function RecepcionPage() {
       .catch(() => toast.error('No se pudo cargar programaciones'))
   }, [isDemoMode])
   const [savedTicket, setSavedTicket] = useState<TicketType | null>(null)
-  const { guias, mercaderias, addGuia, removeGuia, addMercaderia, removeMercaderia, resetRecepcion } =
+  const { guias, mercaderias, addGuia, removeGuia, addMercaderia, removeMercaderia, updateMercaderia, resetRecepcion } =
     useRecepcionStore()
 
   const today = hoyPeru()
@@ -261,6 +264,7 @@ export default function RecepcionPage() {
   }, [isDemoMode])
 
   const [habilitar, setHabilitar]       = useState(false)
+  const [numeroBusqueda, setNumeroBusqueda] = useState('')
   const [busquedaMode, setBusqueda]     = useState(false)
   const [grrInput, setGrrInput]         = useState('')
   const [showModal, setShowModal]       = useState(false)
@@ -270,10 +274,6 @@ export default function RecepcionPage() {
   const [mercForm, setMercForm] = useState({
     tipo:'', pesoTotal:0, cantidad:1, numeroBultos:1, descripcion:'', esPesoVolumen:false,
   })
-  const { subTotal, igv, total } = calcularMontos(
-    mercForm.pesoTotal, mercForm.cantidad, COSTO_KG_DEFAULT
-  )
-
   const { control, register, handleSubmit, setValue, watch, formState:{errors}, reset } =
     useForm<FormData>({
       resolver: zodResolver(schema),
@@ -282,6 +282,31 @@ export default function RecepcionPage() {
         remitenteTipoDoc:'DNI', destinatarioTipoDoc:'DNI',
       },
     })
+
+  const [tipos, setTipos] = useState<string[]>(isDemoMode ? TIPOS_MERCADERIA : [])
+  const origenId = watch('origenId'), destinoId = watch('destinoId'), tipoEntrega = watch('tipoEntrega')
+  type Quote = { costoKg: number; subTotal: number; igv: number; total: number }
+  const [received, setReceived] = useState<{ key: string; quote: Quote } | null>(null)
+  const [quoteError, setQuoteError] = useState('')
+  const quoteKey = JSON.stringify([origenId, destinoId, tipoEntrega, mercForm.tipo, mercForm.pesoTotal])
+  const quote = isDemoMode
+    ? { costoKg: COSTO_KG_DEFAULT, ...calcularMontos(mercForm.pesoTotal, mercForm.cantidad, COSTO_KG_DEFAULT) }
+    : received?.key === quoteKey ? received.quote : null
+
+  useEffect(() => {
+    if (!isDemoMode) mercaderiaApi.tiposLista().then(r => setTipos(r.data)).catch(() => toast.error('No se pudo cargar el catálogo de mercadería'))
+  }, [isDemoMode])
+  useEffect(() => {
+    setQuoteError('')
+    if (isDemoMode || !origenId || !destinoId || !mercForm.tipo || mercForm.pesoTotal <= 0) return
+    let active = true
+    const timer = setTimeout(() => {
+      mercaderiaApi.calcularCosto(mercForm.tipo, mercForm.pesoTotal, origenId, destinoId, tipoEntrega)
+        .then(r => { if (active) setReceived({ key: quoteKey, quote: r.data }) })
+        .catch(err => { if (active) setQuoteError(err.response?.data?.message || 'No se pudo cotizar la mercadería') })
+    }, 250)
+    return () => { active = false; clearTimeout(timer) }
+  }, [isDemoMode, origenId, destinoId, tipoEntrega, mercForm.tipo, mercForm.pesoTotal, quoteKey])
 
   // ── Aplicar reenvío ────────────────────────────────────────────────────────
   const aplicarReenvio = (t: TicketType) => {
@@ -324,16 +349,17 @@ export default function RecepcionPage() {
   const handleAddMerc = () => {
     if (!mercForm.tipo) { toast.error('Seleccione tipo de mercadería'); return }
     if (mercForm.pesoTotal <= 0) { toast.error('Ingrese el peso'); return }
+    if (!quote) { toast.error('Complete la ruta y espere la cotización'); return }
     addMercaderia({ tipo:mercForm.tipo, descripcion:mercForm.descripcion,
-      pesoTotal:mercForm.pesoTotal, costoKg:COSTO_KG_DEFAULT, cantidad:mercForm.cantidad,
-      numeroBultos:mercForm.numeroBultos, esPesoVolumen:mercForm.esPesoVolumen, subTotal, igv, total })
+      pesoTotal:mercForm.pesoTotal, cantidad:mercForm.cantidad,
+      numeroBultos:mercForm.numeroBultos, esPesoVolumen:mercForm.esPesoVolumen, ...quote })
     setMercForm({ tipo:'', pesoTotal:0, cantidad:1, numeroBultos:1, descripcion:'', esPesoVolumen:false })
     toast.success('Mercadería agregada')
   }
 
-  const totalGeneral    = mercaderias.reduce((s,m)=>s+m.total,0)
-  const subtotalGeneral = mercaderias.reduce((s,m)=>s+m.subTotal,0)
-  const igvGeneral      = mercaderias.reduce((s,m)=>s+m.igv,0)
+  const totalGeneral    = sumAmounts(mercaderias.map(m => m.total))
+  const subtotalGeneral = sumAmounts(mercaderias.map(m => m.subTotal))
+  const igvGeneral      = sumAmounts(mercaderias.map(m => m.igv))
 
   const onSubmit = async (data: FormData) => {
     if (mercaderias.length === 0) { toast.error('Agregue al menos una mercadería'); return }
@@ -342,6 +368,13 @@ export default function RecepcionPage() {
         await new Promise(resolve => setTimeout(resolve, 500))
         toast.success(`Ticket demo generado: ${nextNumeroTicket()}`)
       } else {
+        const quotes = await Promise.all(mercaderias.map(m => mercaderiaApi.calcularCosto(m.tipo, m.pesoTotal, data.origenId, data.destinoId, data.tipoEntrega)))
+        const changed = quotes.some(({ data: q }, i) => q.subTotal !== mercaderias[i].subTotal || q.igv !== mercaderias[i].igv || q.costoKg !== mercaderias[i].costoKg)
+        if (changed) {
+          quotes.forEach(({ data: q }, i) => updateMercaderia(i, q))
+          toast('La tarifa cambió. Revise el total actualizado antes de guardar.')
+          return
+        }
         const resolveCliente = async (tipoDoc: 'DNI' | 'RUC', doc: string, nombre: string, telefono?: string): Promise<Cliente> => {
           try {
             return (await clientesApi.byDniRuc(doc)).data
@@ -367,6 +400,7 @@ export default function RecepcionPage() {
           cantidad: 1,
         })))
         const response = await ticketsApi.crear({
+          sedeRecepcionId: user && ['SUPERADMIN', 'SUPERVISOR'].includes(user.rol) ? destinos.find(d => d.id === data.origenId)?.sedeId : undefined,
           fechaViaje: data.fechaViaje, origenId: data.origenId, destinoId: data.destinoId,
           programacionId: data.programacionId || undefined, tipoPago: data.tipoPago,
           tipoEntrega: data.tipoEntrega, atencion1: data.atencion1, atencion2: data.atencion2,
@@ -380,6 +414,41 @@ export default function RecepcionPage() {
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'No se pudo guardar la recepción')
     }
+  }
+
+  const buscarNumero = async () => {
+    const numero = numeroBusqueda.trim()
+    if (!numero) return
+    try {
+      const results = isDemoMode ? TICKETS_DB : (await ticketsApi.buscar({ numeroTicket: numero }, 1, 20)).data.data
+      const found = results.find(t => t.numeroTicket === numero)
+      if (!found) return toast.error('Ticket no encontrado')
+      setSavedTicket(found)
+      toast.success(`Ticket seleccionado: ${found.numeroTicket}`)
+    } catch { toast.error('No se pudo consultar el ticket') }
+  }
+
+  const imprimirDeclaracion = () => {
+    if (!savedTicket) return
+    const popup = window.open('', '_blank')
+    if (!popup) return toast.error('Habilite la ventana de impresión')
+    popup.opener = null
+    const doc = popup.document
+    doc.title = 'Declaración de mercadería ' + savedTicket.numeroTicket
+    const title = doc.createElement('h1')
+    title.textContent = 'Declaración jurada de mercadería'
+    doc.body.append(title)
+    const lines = [
+      `Expreso Machupicchu · Ticket ${savedTicket.numeroTicket}`, `Fecha: ${hoyPeru()}`,
+      `Remitente: ${savedTicket.remitente.razonSocial}`,
+      `Destinatario: ${savedTicket.destinatario.razonSocial}`,
+      `Ruta: ${savedTicket.origen.nombre} a ${savedTicket.destino.nombre}`,
+      'Declaro que la descripción y el peso indicados corresponden a la mercadería entregada.',
+      ...savedTicket.mercaderias.map(m => `${m.tipo} · ${m.descripcion || ''} · Cantidad: ${m.cantidad} · Peso total: ${m.pesoTotal} kg`),
+      'Nombre y documento: ________________________', 'Firma del declarante: ________________________',
+    ]
+    for (const text of lines) { const line = doc.createElement('p'); line.textContent = text; doc.body.append(line) }
+    popup.focus(); popup.print()
   }
 
   const floatActions = [
@@ -442,8 +511,9 @@ export default function RecepcionPage() {
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
-                <Input className="pl-7 w-full" disabled={!busquedaMode} placeholder="Buscar N° ticket..."/>
+                <Input className="pl-7 w-full" disabled={!busquedaMode} value={busquedaMode ? numeroBusqueda : savedTicket?.numeroTicket ?? ''} onChange={e => setNumeroBusqueda(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void buscarNumero() } }} placeholder="Buscar N° ticket..."/>
               </div>
+              {busquedaMode && <Button size="xs" onClick={buscarNumero}>Consultar</Button>}
               <Toggle checked={busquedaMode} onChange={setBusqueda} label="Búsqueda"/>
             </div>
           </FormField>
@@ -457,7 +527,7 @@ export default function RecepcionPage() {
             <p className="text-[11px] font-semibold text-gray-500 mb-2">Imprimir declaración Jurada</p>
             <div className="flex items-center gap-3">
               <Toggle checked={habilitar} onChange={setHabilitar} label="Habilitar"/>
-              <Button variant="primary" size="xs" icon={<Printer size={11}/>} disabled={!habilitar}>Imprimir</Button>
+              <Button variant="primary" size="xs" icon={<Printer size={11}/>} disabled={!habilitar || !savedTicket} onClick={imprimirDeclaracion}>Imprimir</Button>
             </div>
           </div>
         </div>
@@ -539,7 +609,7 @@ export default function RecepcionPage() {
         {guias.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
             {guias.map((g,i)=>(
-              <span key={i} className="inline-flex items-center gap-1.5 bg-blue-50
+              <span key={g.codigo} className="inline-flex items-center gap-1.5 bg-blue-50
                                        text-navy-500 rounded px-2.5 py-1 text-[11px] font-medium">
                 {g.codigo}
                 <button onClick={()=>removeGuia(i)} className="text-red-500 hover:text-red-700">
@@ -556,17 +626,17 @@ export default function RecepcionPage() {
         <SectionTitle>Mercadería</SectionTitle>
         <div className="flex flex-wrap gap-3 mb-3">
           <FormField label="Tipo de Mercadería" className="min-w-[170px]">
-            <Select value={mercForm.tipo} onChange={e=>setMercForm(f=>({...f,tipo:e.target.value}))}>
+            <Select aria-label="Tipo de mercadería" value={mercForm.tipo} onChange={e=>setMercForm(f=>({...f,tipo:e.target.value}))}>
               <option value="">Seleccionar</option>
-              {TIPOS_MERCADERIA.map(t=><option key={t}>{t}</option>)}
+              {tipos.map(t=><option key={t}>{t}</option>)}
             </Select>
           </FormField>
           <FormField label="Peso Total (kg)" className="w-[110px]">
-            <Input type="number" min={0} step={0.1} value={mercForm.pesoTotal}
+            <Input aria-label="Peso total (kg)" type="number" min={0} step={0.1} value={mercForm.pesoTotal}
               onChange={e=>setMercForm(f=>({...f,pesoTotal:parseFloat(e.target.value)||0}))}/>
           </FormField>
           <FormField label="Costo / kg" className="w-[90px]">
-            <Input value={`S/ ${COSTO_KG_DEFAULT.toFixed(2)}`} readOnly/>
+            <Input value={quote ? `S/ ${quote.costoKg.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : '—'} readOnly/>
           </FormField>
           <FormField label="Cantidad" className="w-[80px]">
             <Input type="number" min={1} value={mercForm.cantidad}
@@ -589,19 +659,20 @@ export default function RecepcionPage() {
               onChange={v=>setMercForm(f=>({...f,esPesoVolumen:v}))}/>
           </div>
           <FormField label="Sub Total" className="w-[100px]">
-            <Input value={`S/ ${subTotal.toFixed(2)}`} readOnly className="font-medium text-gray-700"/>
+            <Input value={formatMoney(quote?.subTotal)} readOnly className="font-medium text-gray-700"/>
           </FormField>
-          <FormField label="IGV (18%)" className="w-[90px]">
-            <Input value={`S/ ${igv.toFixed(2)}`} readOnly/>
+          <FormField label="IGV" className="w-[90px]">
+            <Input value={formatMoney(quote?.igv)} readOnly/>
           </FormField>
           <FormField label="Total" className="w-[110px]">
-            <Input value={`S/ ${total.toFixed(2)}`} readOnly className="font-semibold text-navy-500"/>
+            <Input value={formatMoney(quote?.total)} readOnly className="font-semibold text-navy-500"/>
           </FormField>
           <div className="pb-0.5">
-            <Button variant="primary" icon={<Plus size={13}/>} onClick={handleAddMerc}>Agregar</Button>
+            <Button variant="primary" icon={<Plus size={13}/>} onClick={handleAddMerc} disabled={!quote}>Agregar</Button>
           </div>
         </div>
 
+        {quoteError && <p role="alert" className="text-sm text-red-700">{quoteError}</p>}
         {mercaderias.length > 0 && (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-[11px] border-collapse">
@@ -615,7 +686,7 @@ export default function RecepcionPage() {
               </thead>
               <tbody>
                 {mercaderias.map((m,i)=>(
-                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-3 py-2 font-medium">{m.tipo}</td>
                     <td className="px-3 py-2 text-gray-600">{m.descripcion||'—'}</td>
                     <td className="px-3 py-2">{m.pesoTotal} kg</td>

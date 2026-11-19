@@ -1,4 +1,5 @@
 'use client'
+import { isDemoSession } from '@/lib/demo-session'
 import { hoyPeru } from '@/lib/peru-time'
 import { useCallback, useEffect, useState, useMemo } from 'react'
 import {
@@ -12,8 +13,8 @@ import {
 } from '@/components/ui'
 import Link from 'next/link'
 import { abrirArchivo, mensajeApi } from '@/lib/archivos'
-import { TICKETS_DB } from '@/lib/data'
-import { formatMoney } from '@/lib/utils'
+import { TICKETS_DB } from '@/lib/demo/data'
+import { sumAmounts, formatMoney } from '@/lib/utils'
 import { useToggle } from '@/hooks'
 import { manifiestoApi, destinosApi, catalogosV2Api } from '@/lib/api'
 import { useAuthStore } from '@/store'
@@ -172,8 +173,8 @@ export default function ManifiestoPage() {
       .catch(error => toast.error(mensajeApi(error, 'No se pudo abrir el manifiesto')))
   const token = useAuthStore(s => s.token)
   const user = useAuthStore(s => s.user)
-  const isDemoMode = !token || token.startsWith('demo-')
-  const [items, setItems]         = useState<Manifiesto[]>(INIT)
+  const isDemoMode = isDemoSession(token)
+  const [items, setItems]         = useState<Manifiesto[]>(isDemoMode ? INIT : [])
   const [destinos, setDestinos]   = useState<Array<{ id: string; nombre?: string; codigo?: string }>>([])
   const [vehiculos, setVehiculos] = useState<FlotaOption[]>([])
   const [conductores, setConductores] = useState<FlotaOption[]>([])
@@ -337,7 +338,7 @@ export default function ManifiestoPage() {
         {filtrados.map(m => {
           const isOpen  = expandido === m.id
           const accion  = AVANZAR[m.estado]
-          const subtotal = m.tickets.reduce((s,t)=>s+t.total,0)
+          const subtotal = sumAmounts(m.tickets.map(t => t.total))
 
           return (
             <Card key={m.id} padding={false} className="overflow-hidden">
@@ -530,7 +531,7 @@ export default function ManifiestoPage() {
               {l:'Tickets',      v:verDetalle.tickets.length},
               {l:'Total bultos', v:verDetalle.totalBultos},
               {l:'Peso total',   v:`${verDetalle.totalPeso} kg`},
-              {l:'Monto total',  v:formatMoney(verDetalle.tickets.reduce((s,t)=>s+t.total,0))},
+              {l:'Monto total',  v:formatMoney(sumAmounts(verDetalle.tickets.map(t => t.total)))},
             ].map(({l,v})=>(
               <div key={l} className="flex justify-between py-1.5 border-b border-gray-100">
                 <span className="text-gray-500">{l}</span>
