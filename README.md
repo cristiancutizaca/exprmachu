@@ -4,7 +4,7 @@ GRAEL es un sistema de gestión logística multisede para recepción, custodia, 
 
 ## Operación actual
 
-Consulte [la configuración, emisión y pruebas de SUNAT](docs/SUNAT_OPERACION.md). Las correcciones se desarrollaron sobre el monolito logístico existente. El backend requiere Node.js 24.9 o posterior.
+El backend requiere Node.js 24.9 o posterior. Consulte el [informe de auditoría y arranque en Windows](docs/AUDITORIA_OPERATIVA_2026-11-18.md) y la [guía de operación tributaria](docs/SUNAT_OPERACION.md).
 
 ## Antecedentes de V10
 
@@ -23,24 +23,26 @@ V10 incorpora hardening ejecutado del ledger financiero de Caja, aislamiento de 
 
 ## Puesta en marcha local
 
+Conserve la configuración del backend y haga una copia recuperable de PostgreSQL antes de aplicar migraciones a una base existente. Los pasos de respaldo y los comandos para PowerShell están en el [informe de auditoría](docs/AUDITORIA_OPERATIVA_2026-11-18.md#puesta-en-marcha-en-windows).
+
 ```bash
 cd grael-backend
 npm ci
-export DB_HOST=127.0.0.1 DB_PORT=5432 DB_USER=grael_user DB_PASS=grael_pass_2026 DB_NAME=grael_v10_db
+docker compose up -d postgres
+npm run typeorm -- migration:show
 npm run migration:run
-npm run seed
-JWT_SECRET=solo-validacion-local PORT=3002 npm run start:prod
+PORT=3002 FRONTEND_URL=http://127.0.0.1:3003 npm run dev
 ```
 
-En otra terminal:
+En otra terminal, desde la raíz del proyecto:
 
 ```bash
 cd grael-frontend
 npm ci
-NEXT_PUBLIC_API_URL=http://127.0.0.1:3002/api/v1 npm run dev -- -p 3003
+NEXT_PUBLIC_API_URL=http://127.0.0.1:3002/api/v1 npx next dev -p 3003
 ```
 
-La API utiliza `/api/v1`; el health check está en `/health`. Los secretos anteriores son únicamente ejemplos locales de validación y no deben reutilizarse en ambientes reales.
+La API usa `/api/v1` y la comprobación de conexión está en `/health`. Los datos de demostración se cargan con `ALLOW_DEMO_SEED=true npm run seed` en una base de pruebas cuyo nombre comience por `exprmachu_test_`. La interfaz de demostración requiere `NEXT_PUBLIC_ENABLE_DEMO=true` en desarrollo y entrar mediante su opción de demostración.
 
 ## Validación reproducible
 
