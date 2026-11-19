@@ -142,7 +142,7 @@ export class PayTicketDto {
   @IsOptional() @IsEnum(MetodoPago)
   metodoPago?: MetodoPago
 
-  @IsOptional() @Type(() => Number) @IsNumber() @Min(0.01)
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0.01)
   monto?: number
 }
 

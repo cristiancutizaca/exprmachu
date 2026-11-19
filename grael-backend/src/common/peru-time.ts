@@ -14,3 +14,12 @@ export function limitesDiaPeru(fecha: string): { inicio: Date; fin: Date } {
   const fin = new Date(inicio.getTime() + 86400000 - 1)
   return { inicio, fin }
 }
+
+/** Legacy timestamp columns contain the database session's civil time (DEFAULT now()). */
+export function fechaLocalPeru(column: string): string {
+  return `((${column} AT TIME ZONE current_setting('TimeZone')) AT TIME ZONE 'America/Lima')`
+}
+
+export function limiteEnZonaDb(parameter: string): string {
+  return `(CAST(${parameter} AS timestamptz) AT TIME ZONE current_setting('TimeZone'))`
+}

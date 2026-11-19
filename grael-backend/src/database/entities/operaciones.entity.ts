@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import {
   Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany,
   JoinColumn, JoinTable, CreateDateColumn, UpdateDateColumn
@@ -228,7 +229,7 @@ export class Pago {
   @Column({ name: 'ticket_id' })
   ticketId: string
 
-  @Column({ type: 'numeric', precision: 12, scale: 2 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2 })
   monto: number
 
   @Column({ type: 'enum', enum: MetodoPago, name: 'metodo_pago' })
@@ -288,13 +289,13 @@ export class Comprobante {
   @JoinColumn({ name: 'cliente_id' })
   cliente: any  // Cliente entity
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'sub_total' })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'sub_total' })
   subTotal: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2 })
   igv: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2 })
   total: number
 
   @Column({ default: 'INTERNO' })

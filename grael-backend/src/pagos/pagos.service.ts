@@ -1,13 +1,14 @@
+import { sumMoney } from '../common/decimal'
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Between, DataSource, Repository } from 'typeorm'
+import { DataSource, Raw, Repository } from 'typeorm'
 import { MetodoPago, Pago } from '../database/entities/operaciones.entity'
 import { CajaSesion, EstadoCajaSesion, MovimientoCaja, TipoMovimientoCaja } from '../database/entities/caja.entity'
 import { Sede } from '../database/entities/sede.entity'
 import { RolUsuario, Usuario } from '../database/entities/usuario.entity'
 import { AuditLog } from '../database/entities/audit-log.entity'
 import { assertSedeAccess, isGlobalRole } from '../auth/sede-scope'
-import { hoyPeru, limitesDiaPeru } from '../common/peru-time'
+import { fechaLocalPeru, hoyPeru, limiteEnZonaDb, limitesDiaPeru } from '../common/peru-time'
 
 @Injectable()
 export class PagosService {
@@ -33,13 +34,13 @@ export class PagosService {
   }
 
   private signedMovement(movement: Pick<MovimientoCaja, 'tipo' | 'metadata' | 'monto'>) {
-    const direction = String((movement.metadata as any)?.direccion || (movement.metadata as any)?.operation || '').toUpperCase()
+    const direction = String((movement.metadata as any)?.direccion || (movement.metadata as any)?.operacion || (movement.metadata as any)?.operation || '').toUpperCase()
     const isDecrease = movement.tipo === TipoMovimientoCaja.EGRESO || ['SALIDA', 'DISMINUCION', 'AJUSTE_DISMINUCION', 'RETIRO', 'DEPOSITO'].includes(direction)
     return isDecrease ? -Number(movement.monto || 0) : Number(movement.monto || 0)
   }
 
   private expectedCash(saldoInicial: number, movimientos: MovimientoCaja[]) {
-    return Number((Number(saldoInicial || 0) + movimientos.reduce((sum, movement) => sum + (this.isPhysicalMovement(movement) ? this.signedMovement(movement) : 0), 0)).toFixed(2))
+    return sumMoney([saldoInicial, ...movimientos.filter(m => this.isPhysicalMovement(m)).map(m => this.signedMovement(m))])
   }
 
   private isPhysicalMovement(movement: Pick<MovimientoCaja, 'metodoPago' | 'metadata'>) {
@@ -53,20 +54,20 @@ export class PagosService {
     const egresos = movimientos.filter(m => m.tipo === TipoMovimientoCaja.EGRESO)
     const porMetodo = ingresos.reduce((acc, movement) => {
       const key = movement.metodoPago || 'OTROS'
-      acc[key] = (acc[key] || 0) + Number(movement.monto || 0)
+      acc[key] = sumMoney([acc[key] ?? 0, movement.monto])
       return acc
     }, {} as Record<string, number>)
-    const cashIn = ingresos.filter(m => this.isPhysicalMovement(m)).reduce((sum, m) => sum + Number(m.monto || 0), 0)
-    const cashOut = egresos.filter(m => this.isPhysicalMovement(m)).reduce((sum, m) => sum + Number(m.monto || 0), 0)
+    const cashIn = sumMoney(ingresos.filter(m => this.isPhysicalMovement(m)).map(m => m.monto))
+    const cashOut = sumMoney(egresos.filter(m => this.isPhysicalMovement(m)).map(m => m.monto))
     const operation = (m: MovimientoCaja) => String((m.metadata as any)?.operacion || (m.metadata as any)?.operation || '').toUpperCase()
-    const depositos = egresos.filter(m => operation(m) === 'DEPOSITO').reduce((sum, m) => sum + Number(m.monto || 0), 0)
-    const retiros = egresos.filter(m => operation(m) === 'RETIRO').reduce((sum, m) => sum + Number(m.monto || 0), 0)
-    const adjustments = movimientos.filter(m => m.tipo === TipoMovimientoCaja.AJUSTE).reduce((sum, m) => sum + this.signedMovement(m), 0)
+    const depositos = sumMoney(egresos.filter(m => operation(m) === 'DEPOSITO').map(m => m.monto))
+    const retiros = sumMoney(egresos.filter(m => operation(m) === 'RETIRO').map(m => m.monto))
+    const adjustments = sumMoney(movimientos.filter(m => m.tipo === TipoMovimientoCaja.AJUSTE).map(m => this.signedMovement(m)))
     const paymentMovements = ingresos.filter(m => Boolean(m.pagoId))
-    const totalCobrado = paymentMovements.reduce((sum, m) => sum + Number(m.monto || 0), 0)
-    const totalDigital = ingresos.filter(m => !this.isPhysicalMovement(m)).reduce((sum, m) => sum + Number(m.monto || 0), 0)
-    const totalIngresos = ingresos.reduce((sum, m) => sum + Number(m.monto || 0), 0)
-    const totalEgresos = egresos.reduce((sum, m) => sum + Number(m.monto || 0), 0)
+    const totalCobrado = sumMoney(paymentMovements.map(m => m.monto))
+    const totalDigital = sumMoney(ingresos.filter(m => !this.isPhysicalMovement(m)).map(m => m.monto))
+    const totalIngresos = sumMoney(ingresos.map(m => m.monto))
+    const totalEgresos = sumMoney(egresos.map(m => m.monto))
     const esperadoEfectivo = this.expectedCash(Number(caja.saldoInicial || 0), movimientos)
     return {
       saldoInicial: Number(caja.saldoInicial || 0),
@@ -96,13 +97,24 @@ export class PagosService {
     const scopeSedeId = isGlobalRole(user) ? (query.sedeId || undefined) : user?.sedeId
     const page = Math.max(1, Number(query.page) || 1)
     const limit = Math.min(100, Math.max(1, Number(query.limit) || 50))
-    const where: any = { createdAt: Between(dia, fin) }
+    const where: any = { createdAt: Raw(column => `${column} >= ${limiteEnZonaDb(':desde')} AND ${column} < ${limiteEnZonaDb(':hasta')}`, {
+      desde: dia.toISOString(), hasta: new Date(fin.getTime() + 1).toISOString(),
+    }) }
     if (scopeSedeId) where.sedeId = scopeSedeId
-    const [pagos, totalRegistros] = await this.repo.findAndCount({ where, relations: ['ticket', 'ticket.origen', 'ticket.destino', 'ticket.remitente', 'ticket.destinatario', 'usuario'], order: { createdAt: 'ASC' }, skip: (page - 1) * limit, take: limit })
-    const allForSummary = await this.repo.find({ where, select: ['monto', 'metodoPago'] })
-    const total = allForSummary.reduce((sum, payment) => sum + Number(payment.monto || 0), 0)
-    const porMetodo = allForSummary.reduce((acc, payment) => { acc[payment.metodoPago] = (acc[payment.metodoPago] || 0) + Number(payment.monto || 0); return acc }, {} as Record<string, number>)
-    return { pagos: pagos.map(payment => ({ ...payment, usuario: this.safeUser(payment.usuario) })), total: Number(total.toFixed(2)), porMetodo, fecha, cantidadCobros: totalRegistros, page, limit, totalPages: Math.ceil(totalRegistros / limit), sedeId: scopeSedeId || null }
+    const [pagos, totalRegistros] = await this.repo.findAndCount({ where, relations: ['ticket', 'ticket.origen', 'ticket.destino', 'ticket.remitente', 'ticket.destinatario', 'usuario'], order: { createdAt: 'ASC', id: 'ASC' }, skip: (page - 1) * limit, take: limit })
+    const franja = `(floor(extract(hour FROM ${fechaLocalPeru('p.created_at')}) / 2)::int * 2)`
+    const groups: { metodo: string; monto: string; cantidad: number; hora: number }[] = await this.repo.createQueryBuilder('p')
+      .select('p.metodo_pago', 'metodo').addSelect('SUM(p.monto)', 'monto').addSelect('COUNT(*)::int', 'cantidad')
+      .addSelect(franja, 'hora').where(where).groupBy('p.metodo_pago').addGroupBy(franja).getRawMany()
+    const porMetodo: Record<string, number> = {}, cantidadPorMetodo: Record<string, number> = {}, porHora: Record<number, number> = {}
+    for (const row of groups) {
+      porMetodo[row.metodo] = sumMoney([porMetodo[row.metodo] ?? 0, row.monto])
+      cantidadPorMetodo[row.metodo] = (cantidadPorMetodo[row.metodo] ?? 0) + row.cantidad
+      porHora[row.hora] = sumMoney([porHora[row.hora] ?? 0, row.monto])
+    }
+    return { pagos: pagos.map(payment => ({ ...payment, usuario: this.safeUser(payment.usuario) })),
+      total: sumMoney(groups.map(row => row.monto)), porMetodo, cantidadPorMetodo, porHora, fecha,
+      cantidadCobros: totalRegistros, page, limit, totalPages: Math.ceil(totalRegistros / limit), sedeId: scopeSedeId || null }
   }
 
   async abrirCaja(dto: { sedeId: string; saldoInicial?: number; observacion?: string }, usuarioId: string, user?: any) {
@@ -175,7 +187,7 @@ export class PagosService {
       if (!Number.isFinite(declared) || declared < 0) throw new BadRequestException('Saldo declarado inválido')
       const movimientos = typeof manager.find === 'function' ? await manager.find(MovimientoCaja, { where: { cajaSesionId: caja.id } }) : []
       const expected = this.expectedCash(Number(caja.saldoInicial || 0), movimientos)
-      const difference = Number((declared - expected).toFixed(2))
+      const difference = sumMoney([declared, -expected])
       caja.saldoEsperado = expected
       caja.saldoDeclarado = declared
       caja.fechaCierre = new Date()

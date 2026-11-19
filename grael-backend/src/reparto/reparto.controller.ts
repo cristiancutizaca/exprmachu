@@ -15,6 +15,10 @@ export class RepartoController {
   constructor(private readonly service: RepartoService) {}
 
   @Get() listar(@Query() query: any, @Request() req: any) { return this.service.listar(query, req.user) }
+  @Roles(RolUsuario.ADMIN_SEDE, RolUsuario.SUPERVISOR, RolUsuario.OPERADOR, RolUsuario.SUPERADMIN)
+  @UseGuards(RolesGuard)
+  @Get('recursos') recursos(@Query('sedeId') sedeId: string, @Request() req: any) { return this.service.recursos(sedeId, req.user) }
+
   @Get(':id') detalle(@Param('id') id: string, @Request() req: any) { return this.service.detalle(id, req.user) }
 
   @Roles(RolUsuario.ADMIN_SEDE, RolUsuario.SUPERVISOR, RolUsuario.OPERADOR, RolUsuario.SUPERADMIN)

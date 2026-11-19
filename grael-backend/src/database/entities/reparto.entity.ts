@@ -57,8 +57,8 @@ export class PlanillaRepartoDetalle {
   @Column({ type: 'int', default: 0 }) intentos: number
   @Column({ type: 'timestamp', name: 'ultima_fecha_intento', nullable: true }) ultimaFechaIntento: Date
   @Column({ type: 'text', nullable: true }) observacion: string
-  @Column({ length: 100, nullable: true }) documentoReceptor: string
-  @Column({ length: 180, nullable: true }) nombreReceptor: string
+  @Column({ name: 'documento_receptor', length: 100, nullable: true }) documentoReceptor: string
+  @Column({ name: 'nombre_receptor', length: 180, nullable: true }) nombreReceptor: string
   @CreateDateColumn({ name: 'created_at' }) createdAt: Date
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt: Date
 }

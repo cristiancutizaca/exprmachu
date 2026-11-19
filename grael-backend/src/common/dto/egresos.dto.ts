@@ -15,7 +15,7 @@ export class CreateEgresoDto {
   concepto: string
 
   @Type(() => Number)
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   monto: number
 

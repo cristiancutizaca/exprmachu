@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import {
   Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn,
   UpdateDateColumn, Index,
@@ -27,25 +28,25 @@ export class Tarifa {
   @Column({ length: 80, name: 'tipo_mercaderia' })
   tipoMercaderia: string
 
-  @Column({ type: 'numeric', precision: 12, scale: 4, name: 'precio_kg', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 4, name: 'precio_kg', default: 0 })
   precioKg: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 4, name: 'precio_volumen', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 4, name: 'precio_volumen', default: 0 })
   precioVolumen: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'precio_minimo', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'precio_minimo', default: 0 })
   precioMinimo: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'recargo_reparto', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'recargo_reparto', default: 0 })
   recargoReparto: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'recargo_fragil', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'recargo_fragil', default: 0 })
   recargoFragil: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'recargo_express', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'recargo_express', default: 0 })
   recargoExpress: number
 
-  @Column({ type: 'numeric', precision: 7, scale: 4, name: 'porcentaje_seguro', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 7, scale: 4, name: 'porcentaje_seguro', default: 0 })
   porcentajeSeguro: number
 
   @Column({ type: 'date', name: 'vigencia_desde' })

@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import {
   Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm'
@@ -34,10 +35,10 @@ export class Vehiculo {
   @Column({ type: 'smallint', nullable: true })
   numeroEjes: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, nullable: true })
   capacidadKg: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 3, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 3, nullable: true })
   capacidadM3: number
 
   @Column({ length: 160, nullable: true })

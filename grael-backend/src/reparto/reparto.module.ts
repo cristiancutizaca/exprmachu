@@ -11,10 +11,11 @@ import { Sede } from '../database/entities/sede.entity'
 import { TrackingEvento } from '../database/entities/tracking-evento.entity'
 import { AuditLog } from '../database/entities/audit-log.entity'
 import { MovimientoAlmacen } from '../database/entities/movimiento-almacen.entity'
+import { EntregasModule } from '../entregas/entregas.module'
 import { TicketsModule } from '../tickets/tickets.module'
 
 @Module({
-  imports: [TicketsModule, TypeOrmModule.forFeature([PlanillaReparto, PlanillaRepartoDetalle, Ticket, Bulto, Usuario, Vehiculo, Sede, TrackingEvento, AuditLog, MovimientoAlmacen])],
+  imports: [EntregasModule, TicketsModule, TypeOrmModule.forFeature([PlanillaReparto, PlanillaRepartoDetalle, Ticket, Bulto, Usuario, Vehiculo, Sede, TrackingEvento, AuditLog, MovimientoAlmacen])],
   controllers: [RepartoController],
   providers: [RepartoService],
   exports: [RepartoService],

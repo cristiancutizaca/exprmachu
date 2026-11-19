@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { Sede } from './sede.entity'
 import { Usuario } from './usuario.entity'
@@ -36,7 +37,7 @@ export class Egreso {
 
   @Column({ type: 'enum', enum: CategoriaEgreso }) categoria: CategoriaEgreso
   @Column({ length: 220 }) concepto: string
-  @Column({ type: 'numeric', precision: 12, scale: 2 }) monto: number
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2 }) monto: number
   @Column({ length: 180, nullable: true }) proveedor: string
   @Column({ length: 11, nullable: true }) ruc: string
   @Column({ length: 80, nullable: true }) documento: string

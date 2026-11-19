@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import {
   Entity, PrimaryGeneratedColumn, Column,
   ManyToOne, OneToMany, JoinColumn,
@@ -107,13 +108,13 @@ export class Ticket {
   atencion2: string
 
   // ─── Totales ───────────────────────────────────────────────────────────────
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'sub_total', default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'sub_total', default: 0 })
   subTotal: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, default: 0 })
   igv: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, default: 0 })
   total: number
 
   // ─── Pago ──────────────────────────────────────────────────────────────────
@@ -126,7 +127,7 @@ export class Ticket {
   @Column({ length: 30, name: 'metodo_pago', nullable: true })
   metodoPago: string
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'monto_pagado', nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'monto_pagado', nullable: true })
   montoPagado: number
 
   // ─── Anulación ─────────────────────────────────────────────────────────────

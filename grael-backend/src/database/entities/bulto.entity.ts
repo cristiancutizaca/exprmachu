@@ -1,3 +1,4 @@
+import { numericTransformer } from '../../common/decimal'
 import {
   Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -54,25 +55,25 @@ export class Bulto {
   @Column({ type: 'integer', default: 1 })
   cantidad: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 3, name: 'peso_real', nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 3, name: 'peso_real', nullable: true })
   pesoReal: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 3, name: 'peso_volumetrico', nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 3, name: 'peso_volumetrico', nullable: true })
   pesoVolumetrico: number
 
-  @Column({ type: 'numeric', precision: 10, scale: 3, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 10, scale: 3, nullable: true })
   alto: number
 
-  @Column({ type: 'numeric', precision: 10, scale: 3, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 10, scale: 3, nullable: true })
   ancho: number
 
-  @Column({ type: 'numeric', precision: 10, scale: 3, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 10, scale: 3, nullable: true })
   largo: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 6, nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 6, nullable: true })
   volumen: number
 
-  @Column({ type: 'numeric', precision: 12, scale: 2, name: 'valor_declarado', nullable: true })
+  @Column({ type: 'numeric', transformer: numericTransformer, precision: 12, scale: 2, name: 'valor_declarado', nullable: true })
   valorDeclarado: number
 
   @Column({ default: false })

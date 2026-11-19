@@ -1,4 +1,7 @@
-import { hoyPeru, limitesDiaPeru } from '../common/peru-time'
+import Decimal from 'decimal.js'
+import { money, sumMoney } from '../common/decimal'
+import { cotizarMercaderia } from '../mercaderia/cotizacion'
+import { hoyPeru, limiteEnZonaDb, limitesDiaPeru } from '../common/peru-time'
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import * as QRCode from 'qrcode'
 import { InjectRepository } from '@nestjs/typeorm'
@@ -64,21 +67,29 @@ export class TicketsService {
 
     if (filtros.numeroTicket) qb.andWhere('t.numeroTicket ILIKE :nt', { nt:`%${filtros.numeroTicket}%` })
     if (filtros.dniRuc) qb.andWhere('(rem.ruc ILIKE :dr OR rem.dni ILIKE :dr OR des.ruc ILIKE :dr OR des.dni ILIKE :dr)', { dr:`%${filtros.dniRuc}%` })
-    if (filtros.origenId) qb.andWhere('(t.origenId = :oid OR origen.nombre ILIKE :origenNombre)', { oid:filtros.origenId, origenNombre:`%${filtros.origenId}%` })
-    if (filtros.destinoId) qb.andWhere('(t.destinoId = :did OR destino.nombre ILIKE :destinoNombre)', { did:filtros.destinoId, destinoNombre:`%${filtros.destinoId}%` })
+    if (filtros.origenId) qb.andWhere('(CAST(t.origen_id AS text) = :oid OR origen.nombre ILIKE :origenNombre)', { oid:filtros.origenId, origenNombre:`%${filtros.origenId}%` })
+    if (filtros.destinoId) qb.andWhere('(CAST(t.destino_id AS text) = :did OR destino.nombre ILIKE :destinoNombre)', { did:filtros.destinoId, destinoNombre:`%${filtros.destinoId}%` })
     if (filtros.tipoEntrega) qb.andWhere('t.tipoEntrega = :te', { te:filtros.tipoEntrega })
     if (filtros.estado)      qb.andWhere('t.estado       = :es', { es:filtros.estado })
     if (filtros.pagado !== undefined && filtros.pagado !== '') qb.andWhere('t.pagado = :pa', { pa: filtros.pagado === 'true' })
     if (filtros.anulado !== undefined && filtros.anulado !== '') qb.andWhere('t.anulado = :an', { an: filtros.anulado === 'true' })
-    if (filtros.fechaInicio && filtros.fechaFin) {
-      qb.andWhere('t.fechaEmision BETWEEN :fi AND :ff', {
-        fi: new Date(filtros.fechaInicio), ff: new Date(filtros.fechaFin + 'T23:59:59')
-      })
+    if (['NATURAL', 'JURIDICO'].includes(filtros.tipoCliente)) {
+      qb.andWhere('(rem.tipo = :cliente OR des.tipo = :cliente)', { cliente: filtros.tipoCliente })
+    }
+    if (filtros.fechaInicio) {
+      const { inicio } = limitesDiaPeru(filtros.fechaInicio)
+      if (filtros.filtrarPor === 'FECHA_VIAJE') qb.andWhere('t.fechaViaje >= :inicio', { inicio: filtros.fechaInicio })
+      else qb.andWhere(`t.fechaEmision >= ${limiteEnZonaDb(':inicio')}`, { inicio: inicio.toISOString() })
+    }
+    if (filtros.fechaFin) {
+      const { fin } = limitesDiaPeru(filtros.fechaFin)
+      if (filtros.filtrarPor === 'FECHA_VIAJE') qb.andWhere('t.fechaViaje <= :fin', { fin: filtros.fechaFin })
+      else qb.andWhere(`t.fechaEmision < ${limiteEnZonaDb(':fin')}`, { fin: new Date(fin.getTime() + 1).toISOString() })
     }
     const guia = filtros.guiaRemisionRemitente || filtros.guiaRemision
     if (guia) qb.andWhere('guias.codigo ILIKE :gr', { gr:`%${guia}%` })
 
-    qb.orderBy('t.fechaEmision', 'DESC').skip((page-1)*limit).take(limit)
+    qb.orderBy('t.fechaEmision', 'DESC').addOrderBy('t.createdAt', 'DESC').addOrderBy('t.id', 'DESC').skip((page-1)*limit).take(limit)
     const [data, total] = await qb.getManyAndCount()
     return { data, total, page, limit, totalPages: Math.ceil(total/limit) }
   }
@@ -125,43 +136,24 @@ export class TicketsService {
 
       const mercs: any[] = Array.isArray(dto.mercaderias) ? dto.mercaderias : []
       if (mercs.length === 0) throw new BadRequestException({ statusCode: 400, code: 'TICKET_EMPTY_CARGO', message: 'La recepción debe contener al menos una mercadería', details: {} })
-      const round = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
-      const normalizeKey = (value: string) => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
-      const igvConfig = await manager.findOneBy(Configuracion, { clave: 'sistema.igv' })
-      const igvRate = Number(igvConfig?.valor || 18)
       const normalizedMercs: any[] = []
       const manualTariffItems: any[] = []
       for (const item of mercs) {
         const tipo = String(item.tipo || 'CARGA GENERAL')
-        const tariff = await manager.createQueryBuilder(Tarifa, 'tarifa')
-          .where('tarifa.origen_id = :origenId', { origenId: origen.id })
-          .andWhere('tarifa.destino_id = :destinoId', { destinoId: destino.id })
-          .andWhere('LOWER(tarifa.tipo_mercaderia) = LOWER(:tipo)', { tipo })
-          .andWhere('tarifa.activo = true')
-          .andWhere('tarifa.vigencia_desde <= CURRENT_DATE')
-          .andWhere('(tarifa.vigencia_hasta IS NULL OR tarifa.vigencia_hasta >= CURRENT_DATE)')
-          .orderBy('tarifa.vigencia_desde', 'DESC')
-          .getOne()
-        const config = await manager.findOneBy(Configuracion, { clave: `tarifa.${normalizeKey(tipo)}` })
-        const configuredPrice = Number(tariff?.precioKg ?? config?.valor ?? 0)
         const manualRequested = Boolean(dto.tarifaManual)
         const manualAuthorized = manualRequested && ['ADMIN_SEDE', 'SUPERVISOR'].includes(String(usuario.rol)) && String(dto.motivoTarifaManual || '').trim().length >= 5 && Number(item.costoKg) > 0
         if (manualRequested && !manualAuthorized) throw new BadRequestException({ statusCode: 403, code: 'MANUAL_TARIFF_NOT_AUTHORIZED', message: 'La tarifa manual requiere rol autorizado, precio positivo y motivo', details: { tipo } })
-        const precioKg = manualAuthorized ? Number(item.costoKg) : configuredPrice
-        if (precioKg <= 0 && Number(tariff?.precioMinimo || 0) <= 0) throw new BadRequestException({ statusCode: 400, code: 'TARIFF_NOT_CONFIGURED', message: `No existe tarifa configurada para ${tipo} en la ruta seleccionada`, details: { tipo, origenId: origen.id, destinoId: destino.id } })
-        if (manualAuthorized) manualTariffItems.push({ tipo, precioKg, motivo: dto.motivoTarifaManual, usuarioAutoriza: usuario.id })
-        const peso = Number(item.pesoTotal || 0)
-        if (peso <= 0) throw new BadRequestException({ statusCode: 400, code: 'CARGO_WEIGHT_REQUIRED', message: `El peso de ${tipo} debe ser mayor que cero`, details: { tipo } })
-        const base = Math.max(Number(tariff?.precioMinimo || 0), peso * precioKg)
-        const recargoReparto = dto.tipoEntrega === 'REPARTO' ? Number(tariff?.recargoReparto || 0) : 0
-        const recargoFragil = item.fragil ? Number(tariff?.recargoFragil || 0) : 0
-        const subtotalItem = round(base + recargoReparto + recargoFragil)
-        const igvItem = round(subtotalItem * igvRate / 100)
-        normalizedMercs.push({ ...item, tipo, costoKg: precioKg, subTotal: subtotalItem, igv: igvItem, total: round(subtotalItem + igvItem), esPesoVolumen: Boolean(item.esPesoVolumen) })
+        const quote = await cotizarMercaderia(manager, {
+          tipo, peso: item.pesoTotal, origenId: origen.id, destinoId: destino.id,
+          reparto: dto.tipoEntrega === 'REPARTO', fragil: item.fragil,
+          precioManual: manualAuthorized ? item.costoKg : undefined,
+        })
+        if (manualAuthorized) manualTariffItems.push({ tipo, precioKg: quote.costoKg, motivo: dto.motivoTarifaManual, usuarioAutoriza: usuario.id })
+        normalizedMercs.push({ ...item, tipo, ...quote, esPesoVolumen: Boolean(item.esPesoVolumen) })
       }
-      const subTotal = round(normalizedMercs.reduce((sum, item) => sum + Number(item.subTotal || 0), 0))
-      const igv = round(normalizedMercs.reduce((sum, item) => sum + Number(item.igv || 0), 0))
-      const total = round(normalizedMercs.reduce((sum, item) => sum + Number(item.total || 0), 0))
+      const subTotal = sumMoney(normalizedMercs.map(item => item.subTotal))
+      const igv = sumMoney(normalizedMercs.map(item => item.igv))
+      const total = sumMoney([subTotal, igv])
 
       const ticket = manager.create(Ticket, {
         numeroTicket, fechaViaje: new Date(dto.fechaViaje),
@@ -230,11 +222,11 @@ export class TicketsService {
       TicketAccessPolicy.assertCancel(user, accessTicket)
     }
     return this.dataSource.transaction(async manager => {
-      const ticket = await manager.findOne(Ticket, { where: { id } })
+      const ticket = await manager.findOne(Ticket, { where: { id }, lock: { mode: 'pessimistic_write' } })
       if (!ticket) throw new NotFoundException(`Ticket ${id} no encontrado`)
       if (ticket.anulado) throw new BadRequestException('Ya fue anulado')
       const pagos = await manager.find(Pago, { where: { ticketId: id } })
-      const montoPagado = pagos.reduce((sum, pago) => sum + Number(pago.monto || 0), 0)
+      const montoPagado = sumMoney(pagos.map(pago => pago.monto))
       if (montoPagado > 0) throw new BadRequestException({ statusCode: 409, code: 'TICKET_HAS_PAYMENTS', message: 'No se puede anular directamente un ticket con pagos; requiere reverso o devolución autorizada', details: { montoPagado } })
       this.workflow.assertTransition(ticket.estado, EstadoTicket.ANULADO)
       const before = { estado: ticket.estado, anulado: ticket.anulado, pagado: ticket.pagado, montoPagado }
@@ -257,11 +249,11 @@ export class TicketsService {
       if (!ticket) throw new NotFoundException(`Ticket ${id} no encontrado`)
       if (ticket.anulado) throw new BadRequestException('Ticket anulado')
       const pagos = await manager.find(Pago, { where: { ticketId: ticket.id } })
-      const pagadoAnterior = pagos.reduce((sum, pago) => sum + Number(pago.monto || 0), 0)
-      const saldo = Math.max(0, Number(ticket.total || 0) - pagadoAnterior)
+      const pagadoAnterior = sumMoney(pagos.map(pago => pago.monto))
+      const saldo = money(new Decimal(ticket.total).minus(pagadoAnterior))
       if (saldo <= 0) throw new BadRequestException('El ticket ya está pagado')
-      const monto = Number(montoSolicitado || saldo)
-      if (!Number.isFinite(monto) || monto <= 0 || monto > saldo) throw new BadRequestException({ statusCode: 409, code: 'PAYMENT_EXCEEDS_BALANCE', message: 'El monto no puede superar el saldo pendiente', details: { saldo, monto } })
+      const monto = montoSolicitado ?? saldo
+      if (!Number.isFinite(monto) || monto <= 0 || money(monto) !== monto || monto > saldo) throw new BadRequestException({ statusCode: 409, code: 'PAYMENT_EXCEEDS_BALANCE', message: 'El monto no puede superar el saldo pendiente', details: { saldo, monto } })
       const metodo = (metodoPago as MetodoPago) || MetodoPago.EFECTIVO
       if (!Object.values(MetodoPago).includes(metodo)) throw new BadRequestException({ statusCode: 400, code: 'PAYMENT_METHOD_INVALID', message: 'Método de pago inválido', details: { metodoPago } })
       const requiereCaja = [MetodoPago.EFECTIVO, MetodoPago.YAPE, MetodoPago.PLIN].includes(metodo)
@@ -270,9 +262,15 @@ export class TicketsService {
       const caja = requiereCaja ? await manager.findOne(CajaSesion, { where: { usuarioAperturaId: usuarioId, estado: EstadoCajaSesion.ABIERTA }, lock: { mode: 'pessimistic_write' } }) : null
       if (requiereCaja && !caja) throw new BadRequestException({ statusCode: 409, code: 'CASH_SESSION_REQUIRED', message: 'Debe abrir una caja antes de registrar pagos en efectivo, Yape o Plin', details: { usuarioId, metodoPago: metodo } })
       const paymentSedeId = caja?.sedeId || usuario.sedeId
-      if (user) TicketAccessPolicy.assertPayment(user, paymentSedeId)
-      const nuevoPagado = Math.round((pagadoAnterior + monto) * 100) / 100
-      ticket.pagado = nuevoPagado >= Number(ticket.total) - 0.01
+      if (user) {
+        if (!isGlobalRole(user)) {
+          const scoped = await manager.findOneOrFail(Ticket, { where: { id }, relations: ['usuarioCreacion', 'destino', 'bultos'] })
+          TicketAccessPolicy.assertRead(user, scoped)
+        }
+        TicketAccessPolicy.assertPayment(user, paymentSedeId)
+      }
+      const nuevoPagado = sumMoney([pagadoAnterior, monto])
+      ticket.pagado = nuevoPagado === Number(ticket.total)
       ticket.fechaPago = ticket.pagado ? new Date() : ticket.fechaPago
       ticket.metodoPago = metodo
       ticket.montoPagado = nuevoPagado
@@ -281,7 +279,7 @@ export class TicketsService {
       if (caja) {
         await manager.save(MovimientoCaja, manager.create(MovimientoCaja, { cajaSesion: caja, cajaSesionId: caja.id, pago, pagoId: pago.id, usuario, usuarioId, tipo: TipoMovimientoCaja.INGRESO, metodoPago: metodo, monto, concepto: `Pago ticket ${ticket.numeroTicket}`, metadata: { ticketId: ticket.id, fuente: 'PAGO' } }))
       }
-      await manager.save(AuditLog, manager.create(AuditLog, { usuarioId, accion: 'PAGAR', entidad: 'Ticket', entidadId: id, despues: { pagado: ticket.pagado, monto, montoPagado: nuevoPagado, saldo: Math.max(0, Number(ticket.total) - nuevoPagado), metodoPago: metodo, cajaSesionId: caja?.id || null } }))
+      await manager.save(AuditLog, manager.create(AuditLog, { usuarioId, accion: 'PAGAR', entidad: 'Ticket', entidadId: id, despues: { pagado: ticket.pagado, monto, montoPagado: nuevoPagado, saldo: money(new Decimal(ticket.total).minus(nuevoPagado)), metodoPago: metodo, cajaSesionId: caja?.id || null } }))
       return manager.findOne(Ticket, { where:{id}, relations:['origen','destino','remitente','destinatario','mercaderias','guiasRemision','bultos'] })
     })
   }
@@ -351,15 +349,15 @@ export class TicketsService {
     if (sedeId) paymentBase.andWhere('p.sede_id = :statsSedeId', { statsSedeId: sedeId })
 
     const [ticketsHoy, pendientesCobro, enTransito, desembarque] = await Promise.all([
-      ticketBase.clone().andWhere('t.created_at >= :hoy AND t.created_at < :manana', { hoy, manana }).getCount(),
+      ticketBase.clone().andWhere(`t.created_at >= ${limiteEnZonaDb(':hoy')} AND t.created_at < ${limiteEnZonaDb(':manana')}`, { hoy, manana }).getCount(),
       ticketBase.clone().andWhere('t.pagado = false AND t.anulado = false').getCount(),
       ticketBase.clone().andWhere('t.estado = :estado', { estado: EstadoTicket.EN_TRANSITO }).getCount(),
       ticketBase.clone().andWhere('t.estado = :desembarque', { desembarque: EstadoTicket.DESEMBARQUE_EN_DESTINO }).getCount(),
     ])
     const [cobradoHoy, montoPendiente] = await Promise.all([
-      paymentBase.clone().select('COALESCE(SUM(p.monto),0)', 'total').andWhere('p.created_at >= :hoy AND p.created_at < :manana', { hoy, manana }).getRawOne(),
-      ticketBase.clone().select('COALESCE(SUM(t.total),0)', 'total').andWhere('t.pagado = false AND t.anulado = false').getRawOne(),
+      paymentBase.clone().select('COALESCE(SUM(p.monto),0)', 'total').andWhere(`p.created_at >= ${limiteEnZonaDb(':hoy')} AND p.created_at < ${limiteEnZonaDb(':manana')}`, { hoy, manana }).getRawOne(),
+      ticketBase.clone().select('COALESCE(SUM(GREATEST(t.total - COALESCE((SELECT SUM(abono.monto) FROM pagos abono WHERE abono.ticket_id = t.id), 0), 0)),0)', 'total').andWhere('t.pagado = false AND t.anulado = false').getRawOne(),
     ])
-    return { ticketsHoy, cobradoHoy: parseFloat(cobradoHoy?.total || '0'), pendientesCobro, montoPendiente: parseFloat(montoPendiente?.total || '0'), enTransito, desembarque }
+    return { ticketsHoy, cobradoHoy: money(cobradoHoy?.total ?? 0), pendientesCobro, montoPendiente: money(montoPendiente?.total ?? 0), enTransito, desembarque }
   }
 }

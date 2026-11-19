@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource, In, IsNull, Repository } from 'typeorm'
 import { PlanillaReparto, PlanillaRepartoDetalle, EstadoPlanillaReparto, EstadoIntentoReparto } from '../database/entities/reparto.entity'
 import { Ticket, EstadoTicket, TipoEntrega } from '../database/entities/ticket.entity'
 import { Bulto, EstadoBulto } from '../database/entities/bulto.entity'
@@ -12,6 +12,8 @@ import { Almacen, UbicacionAlmacen } from '../database/entities/almacen.entity'
 import { MovimientoAlmacen, TipoMovimientoAlmacen } from '../database/entities/movimiento-almacen.entity'
 import { AuditLog } from '../database/entities/audit-log.entity'
 import { assertSedeAccess, isGlobalRole } from '../auth/sede-scope'
+import { Entrega, EstadoEntrega, TipoEntregaV2 } from '../database/entities/entrega.entity'
+import { EntregasService } from '../entregas/entregas.service'
 import { TicketDeliveryStateService } from '../tickets/ticket-delivery-state.service'
 
 @Injectable()
@@ -28,6 +30,7 @@ export class RepartoService {
     @InjectRepository(AuditLog) private readonly auditRepo: Repository<AuditLog>,
     private readonly dataSource: DataSource,
     private readonly ticketDeliveryState: TicketDeliveryStateService,
+    private readonly entregas: EntregasService,
   ) {}
 
   async listar(query: any, user?: any) {
@@ -44,6 +47,16 @@ export class RepartoService {
     if (query.estado) qb.andWhere('p.estado = :estado', { estado: query.estado })
     if (query.fecha) qb.andWhere('p.fecha = :fecha', { fecha: query.fecha })
     return qb.getMany()
+  }
+
+  async recursos(sedeId: string, user: any) {
+    if (!sedeId) throw new BadRequestException('Seleccione la sede del reparto')
+    assertSedeAccess(user, sedeId, 'asignar recursos de reparto')
+    const [vehiculos, repartidores] = await Promise.all([
+      this.vehiculoRepo.find({ where: [{ sedeId, estado: EstadoVehiculo.ACTIVO }, { sedeId: IsNull(), estado: EstadoVehiculo.ACTIVO }], select: { id: true, placa: true }, order: { placa: 'ASC' } }),
+      this.usuarioRepo.find({ where: { sedeId, rol: RolUsuario.REPARTIDOR, activo: true }, select: { id: true, nombre: true, apellido: true }, order: { apellido: 'ASC', nombre: 'ASC' } }),
+    ])
+    return { vehiculos, repartidores }
   }
 
   async detalle(id: string, user?: any) {
@@ -65,6 +78,9 @@ export class RepartoService {
       if (!sede) throw new NotFoundException('Sede no encontrada')
       const ticketIds = Array.isArray(dto.ticketIds) ? [...new Set<string>(dto.ticketIds)] : []
       if (ticketIds.length === 0) throw new BadRequestException('Seleccione al menos un ticket elegible')
+      for (const ticketId of ticketIds.sort()) {
+        await manager.query('SELECT id FROM tickets WHERE id = $1 FOR UPDATE', [ticketId])
+      }
       const tickets = await manager.find(Ticket, { where: ticketIds.map((id: string) => ({ id })), relations: ['bultos'] })
       if (tickets.length !== ticketIds.length) throw new BadRequestException('Uno o más tickets no existen')
 
@@ -75,6 +91,7 @@ export class RepartoService {
         }
         const bultos = (ticket.bultos || []).filter(bulto => [EstadoBulto.DESEMBARCADO, EstadoBulto.LISTO_RECOJO].includes(bulto.estado))
         if (bultos.length === 0) throw new BadRequestException(`El ticket ${ticket.numeroTicket} no tiene bultos listos para reparto`)
+        if (bultos.some(bulto => bulto.sedeActualId !== sedeId)) throw new BadRequestException('La sede de la planilla debe coincidir con la custodia de los bultos')
         for (const bulto of bultos) details.push({ ticket, bulto })
       }
 
@@ -96,7 +113,7 @@ export class RepartoService {
 
       const repartidor = dto.repartidorId ? await manager.findOneBy(Usuario, { id: dto.repartidorId }) : null
       if (dto.repartidorId && !repartidor) throw new NotFoundException('Repartidor no encontrado')
-      if (repartidor && repartidor.rol !== RolUsuario.REPARTIDOR) throw new BadRequestException('El usuario asignado no tiene rol REPARTIDOR')
+      if (repartidor && (!repartidor.activo || repartidor.rol !== RolUsuario.REPARTIDOR)) throw new BadRequestException('El usuario asignado debe ser un repartidor activo')
       if (repartidor?.sedeId && repartidor.sedeId !== sedeId) throw new BadRequestException({ statusCode: 400, code: 'DELIVERY_WRONG_SITE', message: 'El repartidor no pertenece a la sede de la planilla', details: { repartidorSedeId: repartidor.sedeId, planillaSedeId: sedeId } })
 
       const planilla = await manager.save(PlanillaReparto, manager.create(PlanillaReparto, {
@@ -115,7 +132,7 @@ export class RepartoService {
 
   async iniciar(id: string, usuarioId: string, user?: any) {
     return this.dataSource.transaction(async manager => {
-      const planilla = await manager.findOne(PlanillaReparto, { where: { id }, relations: ['sede', 'repartidor', 'vehiculo'] })
+      const planilla = await manager.findOne(PlanillaReparto, { where: { id }, relations: ['sede', 'repartidor', 'vehiculo'], lock: { mode: 'pessimistic_write', tables: ['planillas_reparto'] } })
       if (!planilla) throw new NotFoundException('Planilla no encontrada')
       assertSedeAccess(user, planilla.sedeId, 'iniciar reparto')
       if (![EstadoPlanillaReparto.ASIGNADO, EstadoPlanillaReparto.BORRADOR].includes(planilla.estado)) throw new BadRequestException('La planilla no está disponible para iniciar')
@@ -149,7 +166,7 @@ export class RepartoService {
 
   async registrarIntento(id: string, dto: any, usuarioId: string, user?: any) {
     return this.dataSource.transaction(async manager => {
-      const detalle = await manager.findOne(PlanillaRepartoDetalle, { where: { id }, relations: ['planilla', 'bulto', 'ticket'] })
+      const detalle = await manager.findOne(PlanillaRepartoDetalle, { where: { id }, relations: ['planilla', 'bulto', 'ticket'], lock: { mode: 'pessimistic_write', tables: ['planillas_reparto_detalles'] } })
       if (!detalle) throw new NotFoundException('Detalle de reparto no encontrado')
       assertSedeAccess(user, detalle.planilla?.sedeId, 'registrar intentos de entrega')
       if (detalle.planilla?.estado !== EstadoPlanillaReparto.EN_RUTA) throw new BadRequestException('La planilla no está en ruta')
@@ -164,10 +181,12 @@ export class RepartoService {
       detalle.nombreReceptor = dto.nombreReceptor
       await manager.save(PlanillaRepartoDetalle, detalle)
       if (dto.estado === EstadoIntentoReparto.ENTREGADO) {
-        detalle.bulto.estado = EstadoBulto.ENTREGADO
-        await manager.save(Bulto, detalle.bulto)
-        await manager.save(TrackingEvento, manager.create(TrackingEvento, { ticketId: detalle.ticketId, bultoId: detalle.bultoId, tipoEvento: TipoTrackingEvento.ENTREGADO, usuarioId: usuario?.id, observacion: dto.observacion || 'Entrega en reparto', metadata: { planillaId: detalle.planillaId, detalleId: detalle.id } }))
-        await this.ticketDeliveryState.recalculate(manager, detalle.ticketId)
+        if (!dto.nombreReceptor?.trim() || !dto.documentoReceptor?.trim()) throw new BadRequestException('Indique nombre y documento del receptor')
+        const existing = await manager.findOneBy(Entrega, {
+          ticketId: detalle.ticketId, bultoId: detalle.bultoId, estado: In([EstadoEntrega.PROGRAMADA, EstadoEntrega.EN_REPARTO]),
+        })
+        const pod = existing || await this.entregas.crear({ ticketId: detalle.ticketId, bultoId: detalle.bultoId, tipo: TipoEntregaV2.REPARTO }, usuarioId, user, manager)
+        await this.entregas.entregar(pod.id, dto, usuarioId, user, manager)
       } else if (dto.estado === EstadoIntentoReparto.REPROGRAMADO) {
         detalle.bulto.estado = EstadoBulto.LISTO_RECOJO
         await manager.save(Bulto, detalle.bulto)

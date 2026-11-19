@@ -1,3 +1,4 @@
+import { sumMoney } from '../common/decimal'
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository } from 'typeorm'
@@ -96,7 +97,7 @@ export class EgresosService {
       if (caja) {
         movimiento = await manager.save(MovimientoCaja, manager.create(MovimientoCaja, { cajaSesion: caja, cajaSesionId: caja.id, usuario, usuarioId, tipo: TipoMovimientoCaja.EGRESO, metodoPago: undefined, monto: egreso.monto, concepto: `Egreso ${egreso.concepto}`, metadata: { egresoId: egreso.id, operacion: 'EGRESO' } }))
         // Mantener el campo legado consistente; los resúmenes V10 recalculan desde MovimientoCaja.
-        caja.saldoEsperado = Number((Number(caja.saldoEsperado || 0) - Number(egreso.monto)).toFixed(2))
+        caja.saldoEsperado = sumMoney([caja.saldoEsperado, -egreso.monto])
         await manager.save(CajaSesion, caja)
       }
       await manager.save(AuditLog, manager.create(AuditLog, { usuarioId, sedeId: egreso.sedeId, accion: 'APROBACION_EGRESO', entidad: 'Egreso', entidadId: egreso.id, antes, despues: { estado: saved.estado, monto: egreso.monto, cajaSesionId: caja?.id || null, movimientoId: movimiento?.id || null }, metadata: { solicitadoPor: egreso.usuarioSolicitaId } }))
